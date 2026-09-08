@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.vite/
+.idea/
+.pnpm-store/
+*.log
+*.tsbuildinfo
+.env*
+!.env.example
+.npmrc
+*.key
+*.pem
+.DS_Store
