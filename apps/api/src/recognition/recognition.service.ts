@@ -73,12 +73,16 @@ export class RecognitionService {
         content: [
           { type: 'text', text: 'Identifie cette carte à partir de la photo.' },
           { type: 'file', data: photo.data, mediaType: photo.mediaType },
-          ...(crop ? [{ type: 'file' as const, data: crop.data, mediaType: crop.mediaType }] : []),
+          ...(crop ? [
+            { type: 'text' as const, text: 'Voici un gros plan du bas de la même carte pour lire son numéro. Ce n’est pas une deuxième carte.' },
+            { type: 'file' as const, data: crop.data, mediaType: crop.mediaType },
+          ] : []),
         ],
       }],
       output: Output.object({ schema: CardRecognitionSchema }),
       providerOptions: { google: { mediaResolution: 'MEDIA_RESOLUTION_HIGH' } },
-      maxOutputTokens: 1024,
+      // Gemini partage cette limite entre son raisonnement et la réponse structurée.
+      maxOutputTokens: 8192,
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(120000),
     }));
@@ -86,6 +90,13 @@ export class RecognitionService {
   }
 
   private throwReadableError(error: unknown): never {
+    if (NoObjectGeneratedError.isInstance(error) || NoOutputGeneratedError.isInstance(error)) {
+      const reason = NoObjectGeneratedError.isInstance(error) ? error.finishReason : 'no-output';
+      const tokens = NoObjectGeneratedError.isInstance(error) ? error.usage?.outputTokens : undefined;
+      this.logger.warn(`Gemini returned invalid output (finishReason=${reason}, outputTokens=${tokens ?? 'unknown'})`);
+      throw new BadGatewayException('Gemini n’a pas terminé correctement l’analyse. Réessaie le scan ou utilise la recherche par numéro.');
+    }
+
     const providerError = unwrapProviderError(error);
     const status = APICallError.isInstance(providerError) ? providerError.statusCode : undefined;
     this.logger.warn(`Gemini recognition failed (${status ?? 'unknown'})`);
@@ -101,9 +112,6 @@ export class RecognitionService {
 
     if (error instanceof Error && /Timeout|Abort/i.test(error.name)) {
       throw new GatewayTimeoutException('Gemini met trop de temps à répondre. Réessaie avec une photo plus légère.');
-    }
-    if (NoObjectGeneratedError.isInstance(error) || NoOutputGeneratedError.isInstance(error)) {
-      throw new UnprocessableEntityException('La carte n’a pas pu être lue. Essaie une photo nette, avec une seule carte visible en entier.');
     }
     throw new BadGatewayException('La réponse de Gemini n’a pas pu être traitée. Réessaie ou utilise la recherche par numéro.');
   }

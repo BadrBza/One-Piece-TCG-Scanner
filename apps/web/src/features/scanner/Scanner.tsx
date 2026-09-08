@@ -5,7 +5,6 @@ import { cardNumberCrop } from './card-number-crop';
 import { ManualLookup } from './components/ManualLookup';
 import { PhotoPicker } from './components/PhotoPicker';
 import { ScanResult } from './components/ScanResult';
-import { ScannerHeader } from './components/ScannerHeader';
 
 const MAX_FILE_SIZE = 7 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -97,33 +96,27 @@ export function Scanner() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:px-8">
-        <ScannerHeader />
+    <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.15fr)]">
+      <PhotoPicker
+        busy={busy}
+        canScan={Boolean(preview) && !busy}
+        isImporting={isImporting}
+        isScanning={isScanning}
+        onChange={importPhoto}
+        onScan={() => void recognizeCard()}
+        preview={preview}
+      />
 
-        <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.15fr)]">
-          <PhotoPicker
-            busy={busy}
-            canScan={Boolean(preview) && !busy}
-            isImporting={isImporting}
-            isScanning={isScanning}
-            onChange={importPhoto}
-            onScan={() => void recognizeCard()}
-            preview={preview}
-          />
-
-          <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <ManualLookup
-              cardNumber={cardNumber}
-              disabled={busy}
-              isLoading={isLookingUp}
-              onChange={setCardNumber}
-              onSubmit={() => void findCard()}
-            />
-            <ScanResult error={error} result={result} source={resultSource} />
-          </aside>
-        </div>
-      </section>
-    </main>
+      <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <ManualLookup
+          cardNumber={cardNumber}
+          disabled={busy}
+          isLoading={isLookingUp}
+          onChange={setCardNumber}
+          onSubmit={() => void findCard()}
+        />
+        <ScanResult error={error} result={result} source={resultSource} />
+      </aside>
+    </div>
   );
 }

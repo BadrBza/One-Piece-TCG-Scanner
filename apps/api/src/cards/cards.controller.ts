@@ -5,12 +5,15 @@ import {
   Get,
   Query,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 
 import { CardsService } from './cards.service.js';
+import { AuthGuard } from '../auth/auth.guard.js';
 import { isCardNumber, normalizeCardNumber } from '../recognition/card-number.js';
 
 @Controller('cards')
+@UseGuards(AuthGuard)
 export class CardsController {
 
   constructor(

@@ -1,3 +1,5 @@
+import { request } from './http';
+
 export interface CardRecognition {
   cardNumber: string;
   name: string;
@@ -42,29 +44,15 @@ export interface ScanCardResult {
   };
 }
 
-const apiUrl =
-  import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
-
 export async function lookupCard(number: string): Promise<ScanCardResult> {
-  let response: Response;
-  try {
-    response = await fetch(`${apiUrl}/cards/lookup?number=${encodeURIComponent(number.trim())}`);
-  } catch {
-    throw new Error('Le serveur est inaccessible. Vérifie que le backend est démarré.');
-  }
-  if (!response.ok) {
-    throw new Error(response.status === 400 ? 'Numéro invalide. Exemple : OP01-001.' : 'La recherche a échoué. Réessaie dans un instant.');
-  }
-  return response.json() as Promise<ScanCardResult>;
+  return request(`/cards/lookup?number=${encodeURIComponent(number.trim())}`);
 }
 
 export async function scanCard(
   image: string,
   numberImage?: string,
 ): Promise<ScanCardResult> {
-  let response: Response;
-  try {
-    response = await fetch(`${apiUrl}/cards/scan`, {
+  return request('/cards/scan', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -73,17 +61,5 @@ export async function scanCard(
       image,
       numberImage,
     }),
-    });
-  } catch {
-    throw new Error('Le serveur de scan est inaccessible. Vérifie que le backend est démarré, puis réessaie.');
-  }
-
-  if (!response.ok) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
-      ? body.message : `Le serveur n’a pas pu analyser la photo (erreur ${response.status}).`;
-    throw new Error(message);
-  }
-
-  return response.json() as Promise<ScanCardResult>;
+  });
 }

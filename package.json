@@ -2,6 +2,7 @@
   "name": "one-piece-tcg-scanner",
   "version": "1.0.0",
   "private": true,
+  "engines": { "node": ">=22.13.0" },
   "scripts": {
     "dev": "concurrently \"pnpm --filter @opscan/web dev\" \"pnpm --filter @opscan/api start:dev\"",
     "dev:web": "pnpm --filter @opscan/web dev",

@@ -6,6 +6,9 @@ coverage/
 .pnpm-store/
 *.log
 *.tsbuildinfo
+*.db
+*.db-*
+*.sqlite*
 .env*
 !.env.example
 .npmrc

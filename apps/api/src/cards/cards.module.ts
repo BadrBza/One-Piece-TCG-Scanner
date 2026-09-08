@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module.js';
 
 import { PricingModule } from '../pricing/pricing.module.js';
 import { RecognitionModule } from '../recognition/recognition.module.js';
@@ -8,6 +9,7 @@ import { CardVariantsService } from '../pricing/card-variants.service.js';
 
 @Module({
   imports: [
+    AuthModule,
     RecognitionModule,
     PricingModule,
   ],

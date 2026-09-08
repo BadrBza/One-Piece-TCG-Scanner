@@ -3,6 +3,7 @@ import { ArrowLeft, Coins, ExternalLink } from 'lucide-react';
 
 import type { CardRecognition, PriceResult } from '../../../api/scanCard';
 import { languageLabels } from '../labels';
+import { AddToPortfolio } from '../../portfolio/components/AddToPortfolio';
 
 type Product = NonNullable<PriceResult['products']>[number];
 
@@ -20,7 +21,7 @@ export function CardmarketPrices({ price, card }: { price: PriceResult; card: Ca
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 text-slate-900 sm:p-5" aria-label="Variantes Cardmarket">
       {selected ? (
-        <SelectedVariant product={selected} onBack={() => setSelectedId(null)} />
+        <SelectedVariant key={selected.id} cardNumber={card.cardNumber} product={selected} onBack={() => setSelectedId(null)} />
       ) : (
         <VariantList card={card} price={price} onSelect={setSelectedId} />
       )}
@@ -28,7 +29,7 @@ export function CardmarketPrices({ price, card }: { price: PriceResult; card: Ca
   );
 }
 
-function SelectedVariant({ product, onBack }: { product: Product; onBack: () => void }) {
+function SelectedVariant({ cardNumber, product, onBack }: { cardNumber: string; product: Product; onBack: () => void }) {
   return (
     <>
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">Estimation Cardmarket</p>
@@ -48,6 +49,12 @@ function SelectedVariant({ product, onBack }: { product: Product; onBack: () => 
           <p className="text-3xl font-bold text-slate-900">{product.trendPrice === undefined ? 'Cote indisponible' : euros.format(product.trendPrice)}</p>
         </div>
         <p className="text-xs leading-relaxed text-slate-500">Tendance Cardmarket de cette fiche, sans filtre de langue, d’état ou de frais de port.</p>
+        <AddToPortfolio card={{
+          cardNumber, name: product.name, cardmarketProductId: product.id,
+          imageUrl: product.imageUrl, language: product.languageLabel,
+          rarity: product.rarity, variant: product.variantLabel,
+          expansion: product.expansion, trendPrice: product.trendPrice,
+        }} />
         <div className="flex flex-wrap gap-3">
           <a href={`https://www.cardmarket.com/en/OnePiece/Products?idProduct=${product.id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700">Voir sur Cardmarket <ExternalLink className="size-4" aria-hidden="true" /></a>
           <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"><ArrowLeft className="size-4" aria-hidden="true" /> Changer de variante</button>
