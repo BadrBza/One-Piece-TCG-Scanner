@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 html {
-  background: #f8fafc;
-  color: #0f172a;
+  background: #f3f1ec;
+  color: #24211f;
 }
 
 body {
@@ -10,6 +10,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   font-family:
+    "Aptos",
     "Segoe UI Variable",
     "Segoe UI",
     system-ui,
@@ -17,6 +18,11 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+}
+
+::selection {
+  background: #ead6d8;
+  color: #5f1821;
 }
 
 @media (prefers-reduced-motion: reduce) {

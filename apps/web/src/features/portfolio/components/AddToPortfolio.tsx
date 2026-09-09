@@ -23,17 +23,17 @@ export function AddToPortfolio({ card }: { card: NewPortfolioCard }) {
   }
 
   return (
-    <div className="space-y-2 border-t border-slate-200 pt-4">
+    <div className="space-y-2 border-t border-stone-200 pt-4">
       <button type="button" onClick={() => void add()} disabled={saving}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27] disabled:opacity-60">
         {saving ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
         {saving ? 'Ajout en cours…' : quantity ? 'Ajouter un autre exemplaire' : 'Ajouter à ma collection'}
       </button>
       {quantity !== null && (
-        <p role="status" className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
+        <p role="status" className="flex flex-wrap items-center gap-1.5 text-sm text-stone-600">
           <Check className="size-4 text-green-700" aria-hidden="true" />
           Carte ajoutée · {quantity} exemplaire{quantity > 1 ? 's' : ''} dans ta collection.
-          <a href="#portfolio" className="text-blue-700 underline">Voir ma collection</a>
+          <a href="#portfolio" className="text-[#8f2430] underline">Voir ma collection</a>
         </p>
       )}
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

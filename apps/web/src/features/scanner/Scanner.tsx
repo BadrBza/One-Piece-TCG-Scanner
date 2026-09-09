@@ -1,4 +1,4 @@
-import { Camera, Keyboard, Sparkles } from 'lucide-react';
+import { Camera, Keyboard } from 'lucide-react';
 import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { isNumberConfirmation, lookupCard, resolveCard, scanCard, type NumberConfirmationResult, type RecognizedScanResult } from '../../api/scanCard';
@@ -144,15 +144,12 @@ export function Scanner() {
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-5 border-b border-stone-300 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-blue-600">
-            <Sparkles className="size-4" aria-hidden="true" /> Identification assistée par IA
-          </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Identifie et estime ta carte</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">Importe une photo nette : l’application lit la référence, reconnaît la variante et affiche sa cote Cardmarket.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-stone-950">Scanner une carte</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-600">Importe une photo nette pour identifier la carte, sa variante et sa cote Cardmarket.</p>
         </div>
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm" role="tablist" aria-label="Méthode de recherche">
+        <div className="inline-flex border-b border-stone-300" role="tablist" aria-label="Méthode de recherche">
           <ModeButton active={mode === 'photo'} disabled={busy} icon={<Camera className="size-4" />} onClick={() => selectMode('photo')}>Photo</ModeButton>
           <ModeButton active={mode === 'manual'} disabled={busy} icon={<Keyboard className="size-4" />} onClick={() => selectMode('manual')}>Numéro</ModeButton>
         </div>
@@ -163,13 +160,13 @@ export function Scanner() {
           <PhotoPicker busy={busy} isImporting={isImporting} isScanning={isScanning}
             onChange={importPhoto} onScan={() => void recognizeCard()} preview={preview} />
         ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="rounded-md border border-stone-300 bg-[#fffefa] p-5 sm:p-7">
             <ManualLookup cardNumber={cardNumber} disabled={busy} isLoading={isLookingUp}
               onChange={setCardNumber} onSubmit={() => void findCard()} />
           </div>
         )}
 
-        <aside ref={resultPanel} className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <aside ref={resultPanel} className="scroll-mt-24 rounded-md border border-stone-300 bg-[#fffefa] p-5 sm:p-6">
           <ScanResult confirmation={confirmation} error={error} isConfirming={isLookingUp}
             isLoading={isScanning || isLookingUp} loadingLabel={isScanning ? 'Analyse de la photo et recherche de la cote…' : 'Recherche de la carte…'}
             onConfirm={number => void confirmCardNumber(number)} result={result} source={resultSource} />
@@ -183,8 +180,8 @@ function ModeButton({ active, children, disabled, icon, onClick }: { active: boo
   return (
     <button type="button" role="tab" aria-selected={active} disabled={disabled} onClick={onClick}
       className={active
-        ? 'inline-flex min-h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-60'
-        : 'inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60'}>
+        ? 'inline-flex min-h-10 items-center gap-2 border-b-2 border-[#8f2430] px-4 text-sm font-semibold text-stone-950 disabled:opacity-60'
+        : 'inline-flex min-h-10 items-center gap-2 border-b-2 border-transparent px-4 text-sm font-semibold text-stone-500 hover:text-stone-950 disabled:opacity-60'}>
       {icon}{children}
     </button>
   );

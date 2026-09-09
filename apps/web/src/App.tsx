@@ -73,11 +73,11 @@ export function App() {
 
   if (checkingSession || sessionError) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-slate-700">
+      <main className="flex min-h-screen items-center justify-center bg-[#f3f1ec] p-6 text-stone-700">
         {sessionError ? (
           <div className="space-y-4 text-center">
             <p role="alert">{sessionError}</p>
-            <button onClick={() => setSessionAttempt(attempt => attempt + 1)} className="rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white">Réessayer</button>
+            <button onClick={() => setSessionAttempt(attempt => attempt + 1)} className="rounded-md bg-[#8f2430] px-4 py-3 text-sm font-semibold text-white hover:bg-[#761d27]">Réessayer</button>
           </div>
         ) : <p role="status">Vérification de la connexion…</p>}
       </main>
@@ -87,8 +87,8 @@ export function App() {
   if (!user) return <LoginPage onLogin={onLogin} />;
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 pb-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[#f3f1ec] text-[#24211f]">
+      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 pb-12 sm:px-6 lg:px-8">
         <AppHeader activePage={page === 'portfolio' ? 'portfolio' : 'scanner'} email={user.email} loggingOut={loggingOut} onLogout={() => void onLogout()} />
         {logoutError && <p role="alert" className="text-sm text-red-700">{logoutError}</p>}
         {page === 'portfolio' ? <PortfolioPage key={user.id} /> : <ScannerPage key={user.id} />}

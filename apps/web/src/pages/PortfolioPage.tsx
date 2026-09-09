@@ -53,33 +53,33 @@ export function PortfolioPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Ma collection</h1>
         </div>
-        <a href="#scanner" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">
+        <a href="#scanner" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27]">
           <Plus className="size-4" aria-hidden="true" /> Ajouter une carte
         </a>
       </div>
       {loading ? <p role="status" className="py-12 text-center text-slate-500">Chargement de la collection…</p> : error ? (
-        <div className="rounded-xl border border-red-200 bg-white p-5">
+        <div className="rounded-md border border-red-200 bg-[#fffefa] p-5">
           <p role="alert" className="text-sm text-red-700">{error}</p>
-          <button onClick={() => void load()} className="mt-3 text-sm font-semibold text-blue-700">Réessayer</button>
+          <button onClick={() => void load()} className="mt-3 text-sm font-semibold text-[#8f2430]">Réessayer</button>
         </div>
       ) : cards.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
-          <Layers className="mx-auto size-9 text-slate-400" aria-hidden="true" />
+        <div className="rounded-md border border-stone-300 bg-[#fffefa] px-6 py-16 text-center">
+          <Layers className="mx-auto size-9 text-stone-400" aria-hidden="true" />
           <h2 className="mt-4 text-lg font-semibold">Ta collection commence ici</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500">Scanne une carte, choisis sa variante puis ajoute-la à ta collection.</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-stone-500">Scanne une carte, choisis sa variante puis ajoute-la à ta collection.</p>
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap gap-x-8 gap-y-3 rounded-xl border border-slate-200 bg-white p-5">
-            <p><strong className="text-xl">{count}</strong> <span className="text-sm text-slate-500">carte{count > 1 ? 's' : ''}</span></p>
+          <div className="flex flex-wrap gap-x-10 gap-y-3 border-y border-stone-300 py-5">
+            <p><strong className="text-xl">{count}</strong> <span className="text-sm text-stone-500">carte{count > 1 ? 's' : ''}</span></p>
             <div>
               <p className="text-xl font-semibold">{unpricedCount === count ? 'Cote indisponible' : euros.format(estimatedValue)}</p>
-              {unpricedCount > 0 && <p className="text-xs text-slate-500">{unpricedCount} carte{unpricedCount > 1 ? 's' : ''} sans cote</p>}
+              {unpricedCount > 0 && <p className="text-xs text-stone-500">{unpricedCount} carte{unpricedCount > 1 ? 's' : ''} sans cote</p>}
             </div>
           </div>
           <div className="flex justify-end">
-            <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700">
-              <ArrowDownUp className="size-4 text-slate-400" aria-hidden="true" />
+            <label className="flex min-h-11 items-center gap-2 rounded-md border border-stone-300 bg-[#fffefa] px-3 text-sm font-medium text-stone-700">
+              <ArrowDownUp className="size-4 text-stone-400" aria-hidden="true" />
               <span className="sr-only">Trier les cartes</span>
               <select aria-label="Trier les cartes" value={sortOrder} onChange={event => setSortOrder(event.target.value as SortOrder)}
                 className="cursor-pointer bg-transparent pr-1 outline-none">

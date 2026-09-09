@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Coins, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 
 import type { CardRecognition, PriceResult } from '../../../api/scanCard';
 import { languageLabels } from '../labels';
@@ -21,7 +21,7 @@ export function CardmarketPrices({ price, card }: { price: PriceResult; card: Ca
   useEffect(() => setSelectedId(price.selectedProductId ?? null), [price]);
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 text-slate-900 sm:p-5" aria-label="Variantes Cardmarket">
+    <section className="rounded-md border border-stone-300 bg-white p-4 text-stone-900 sm:p-5" aria-label="Variantes Cardmarket">
       {selected ? (
         <SelectedVariant key={selected.id} cardNumber={card.cardNumber} product={selected} onBack={() => setSelectedId(null)} />
       ) : (
@@ -34,23 +34,22 @@ export function CardmarketPrices({ price, card }: { price: PriceResult; card: Ca
 function SelectedVariant({ cardNumber, product, onBack }: { cardNumber: string; product: Product; onBack: () => void }) {
   return (
     <>
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">Estimation Cardmarket</p>
+      <p className="text-sm text-stone-500">Estimation Cardmarket</p>
       <h3 className="mt-1 text-xl font-semibold">Cote de ta carte</h3>
       <div className="mt-3 space-y-3">
-        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="mx-auto max-h-72 rounded-lg border border-slate-200 bg-slate-50 object-contain p-2" />}
+        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="mx-auto max-h-72 rounded-sm border border-stone-200 bg-stone-50 object-contain p-2" />}
         <p className="font-medium">{title(product)}</p>
-        <p className="text-sm text-slate-700">{product.name}</p>
-        {product.expansion && <p className="text-sm text-slate-500">Série : {product.expansion}</p>}
-        <div className="grid grid-cols-2 gap-2 text-sm text-slate-700">
+        <p className="text-sm text-stone-700">{product.name}</p>
+        {product.expansion && <p className="text-sm text-stone-500">Série : {product.expansion}</p>}
+        <div className="grid grid-cols-2 gap-2 text-sm text-stone-700">
           <p>Langue : <strong>{product.languageLabel ?? 'Non déterminée'}</strong></p>
           <p>Rareté : <strong>{product.rarity ?? 'Non déterminée'}</strong></p>
           <p className="col-span-2">Illustration : <strong>{product.variantLabel ?? 'Non déterminée'}</strong></p>
         </div>
-        <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-4">
-          <Coins className="size-6 text-blue-600" aria-hidden="true" />
-          <p className="text-3xl font-bold text-slate-900">{product.trendPrice === undefined ? 'Cote indisponible' : euros.format(product.trendPrice)}</p>
+        <div className="border-l-2 border-[#8f2430] bg-[#faf5f3] p-4">
+          <p className="text-3xl font-semibold text-stone-950">{product.trendPrice === undefined ? 'Cote indisponible' : euros.format(product.trendPrice)}</p>
         </div>
-        <p className="text-xs leading-relaxed text-slate-500">Tendance Cardmarket de cette fiche, sans filtre de langue, d’état ou de frais de port.</p>
+        <p className="text-xs leading-relaxed text-stone-500">Tendance Cardmarket de cette fiche, sans filtre de langue, d’état ou de frais de port.</p>
         <AddToPortfolio card={{
           cardNumber, name: product.name, cardmarketProductId: product.id,
           imageUrl: product.imageUrl, language: product.languageLabel,
@@ -58,8 +57,8 @@ function SelectedVariant({ cardNumber, product, onBack }: { cardNumber: string; 
           expansion: product.expansion, trendPrice: product.trendPrice,
         }} />
         <div className="flex flex-wrap gap-3">
-          <a href={`https://www.cardmarket.com/en/OnePiece/Products?idProduct=${product.id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700">Voir sur Cardmarket <ExternalLink className="size-4" aria-hidden="true" /></a>
-          <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"><ArrowLeft className="size-4" aria-hidden="true" /> Changer de variante</button>
+          <a href={`https://www.cardmarket.com/en/OnePiece/Products?idProduct=${product.id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white transition hover:bg-[#761d27]">Voir sur Cardmarket <ExternalLink className="size-4" aria-hidden="true" /></a>
+          <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-stone-300 px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"><ArrowLeft className="size-4" aria-hidden="true" /> Changer de variante</button>
         </div>
       </div>
     </>
@@ -73,13 +72,13 @@ function VariantList({ card, price, onSelect }: {
 }) {
   return (
     <>
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">Variantes disponibles</p>
+      <p className="text-sm text-stone-500">Variantes disponibles</p>
       <h3 className="mt-1 text-xl font-semibold">Choisis ta variante</h3>
-      <p className="mt-3 text-sm text-slate-700">
+      <p className="mt-3 text-sm text-stone-700">
         Ta carte semble être en <strong>{languageLabels[card.language]}</strong>
         {card.rarity && <> avec la rareté <strong>{card.rarity}</strong></>}.
       </p>
-      <p className="mt-2 text-xs leading-relaxed text-slate-500">{price.message}</p>
+      <p className="mt-2 text-xs leading-relaxed text-stone-500">{price.message}</p>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {price.products?.map(product => (
           <VariantChoice key={product.id} product={product} onSelect={onSelect} />
@@ -94,20 +93,20 @@ function VariantChoice({ product, onSelect }: { product: Product; onSelect: (id:
     <button
       type="button"
       onClick={() => onSelect(product.id)}
-      className="group flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-blue-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-500"
+      className="group flex flex-col gap-2 rounded-md border border-stone-300 bg-white p-3 text-left transition hover:border-[#8f2430] focus-visible:outline-2 focus-visible:outline-[#8f2430]"
     >
       {product.imageUrl
-        ? <img src={product.imageUrl} alt={title(product)} loading="lazy" className="h-72 w-full rounded-lg bg-slate-50 object-contain p-1.5" />
-        : <span className="flex h-72 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500">Image indisponible</span>}
-      <span className="text-base font-semibold text-slate-900">{title(product)}</span>
-      <span className="text-sm text-slate-600">{product.name}</span>
-      {product.expansion && <span className="text-xs text-slate-500">Série : {product.expansion}</span>}
-      <div className="mt-1 flex flex-wrap gap-1.5">
-        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">{product.languageLabel ?? 'Langue inconnue'}</span>
-        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{product.rarity ?? 'Rareté inconnue'}</span>
-        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">{product.variantLabel ?? 'Variante inconnue'}</span>
+        ? <img src={product.imageUrl} alt={title(product)} loading="lazy" className="h-72 w-full rounded-sm bg-stone-50 object-contain p-1.5" />
+        : <span className="flex h-72 items-center justify-center rounded-sm bg-stone-100 text-sm text-stone-500">Image indisponible</span>}
+      <span className="text-base font-semibold text-stone-900">{title(product)}</span>
+      <span className="text-sm text-stone-600">{product.name}</span>
+      {product.expansion && <span className="text-xs text-stone-500">Série : {product.expansion}</span>}
+      <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-stone-600">
+        <span>{product.languageLabel ?? 'Langue inconnue'}</span><span aria-hidden="true">·</span>
+        <span>{product.rarity ?? 'Rareté inconnue'}</span><span aria-hidden="true">·</span>
+        <span>{product.variantLabel ?? 'Variante inconnue'}</span>
       </div>
-      <span className="mt-auto pt-3 text-sm font-semibold text-blue-600">Choisir cette variante →</span>
+      <span className="mt-auto pt-3 text-sm font-semibold text-[#8f2430]">Choisir cette variante →</span>
     </button>
   );
 }
