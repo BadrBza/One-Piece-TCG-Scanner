@@ -11,6 +11,7 @@ import {
 import { CardsService } from './cards.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { isCardNumber, normalizeCardNumber } from '../recognition/card-number.js';
+import { ResolveCardSchema, ScanCardSchema } from '../schemas/scan-card.schema.js';
 
 @Controller('cards')
 @UseGuards(AuthGuard)
@@ -30,9 +31,18 @@ export class CardsController {
   }
 
   @Post('scan')
-  scan(
-    @Body() body: { image?: unknown; numberImage?: unknown } | null,
-  ) {
-    return this.cardsService.scan(body?.image, body?.numberImage);
+  scan(@Body() body: unknown) {
+    const request = ScanCardSchema.safeParse(body);
+    if (!request.success) {
+      throw new BadRequestException('Importe une photo valide pour lancer le scan.');
+    }
+    return this.cardsService.scan(request.data.image, request.data.numberImage);
+  }
+
+  @Post('resolve')
+  resolve(@Body() body: unknown) {
+    const request = ResolveCardSchema.safeParse(body);
+    if (!request.success) throw new BadRequestException('Le numéro ou la photo est invalide.');
+    return this.cardsService.lookup(request.data.cardNumber, request.data.image);
   }
 }

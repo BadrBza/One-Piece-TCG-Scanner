@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Hash, Search } from 'lucide-react';
 
 type Props = {
   cardNumber: string;
@@ -12,16 +12,18 @@ export function ManualLookup({ cardNumber, disabled, isLoading, onChange, onSubm
   return (
     <form
       id="manual-search"
-      className="mb-6 space-y-3 border-b border-slate-200 pb-6"
+      className="space-y-5"
       onSubmit={event => {
         event.preventDefault();
         onSubmit();
       }}
     >
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">Recherche directe</p>
-        <label htmlFor="card-number" className="mt-1 block text-xl font-semibold">Tu connais déjà le numéro ?</label>
-        <p className="mt-1 text-sm text-slate-500">Exemple : OP01-001</p>
+      <div className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><Hash className="size-5" aria-hidden="true" /></span>
+        <div>
+          <label htmlFor="card-number" className="block text-xl font-semibold">Recherche par numéro</label>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">Saisis la référence imprimée en bas de la carte. Cette méthode affiche les variantes disponibles.</p>
+        </div>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input

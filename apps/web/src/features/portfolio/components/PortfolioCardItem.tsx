@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
 import type { PortfolioCard } from '../../../api/portfolio';
+import { errorMessage } from '../../../api/http';
 
 const euros = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
+const dates = new Intl.DateTimeFormat('fr-BE', { dateStyle: 'medium' });
 
 export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onRemove: (id: number) => Promise<void> }) {
   const [confirming, setConfirming] = useState(false);
@@ -16,7 +18,7 @@ export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onR
     try {
       await onRemove(card.id);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'La suppression a échoué.');
+      setError(errorMessage(reason, 'La suppression a échoué.'));
       setRemoving(false);
     }
   }
@@ -32,7 +34,10 @@ export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onR
       <div className="flex flex-wrap gap-1.5 text-xs text-slate-700">
         {[card.language, card.rarity, card.variant].filter(Boolean).map((label, index) => <span key={index} className="rounded-full bg-slate-100 px-2.5 py-1">{label}</span>)}
       </div>
-      <p className="text-sm"><strong>{card.trendPrice === undefined ? 'Cote indisponible' : euros.format(card.trendPrice)}</strong> <span className="text-slate-500">par carte, à l’ajout</span></p>
+      <div className="text-sm">
+        <p><strong>{card.trendPrice === undefined ? 'Cote indisponible' : euros.format(card.trendPrice)}</strong> <span className="text-slate-500">par carte</span></p>
+        {card.priceUpdatedAt && <p className="mt-1 text-xs text-slate-500">Cote mise à jour le {dates.format(new Date(card.priceUpdatedAt))}</p>}
+      </div>
       <div className="mt-auto border-t border-slate-100 pt-3 text-sm">
         {confirming ? (
           <div className="space-y-2">

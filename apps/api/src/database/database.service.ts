@@ -24,8 +24,13 @@ export class DatabaseService implements OnModuleDestroy {
   }
 
   private migrate() {
-    const version = this.connection.prepare('PRAGMA user_version').get()?.user_version;
-    if (typeof version === 'number' && version >= 1) return;
+    const { user_version: version } = this.connection.prepare('PRAGMA user_version').get() as { user_version: number };
+    if (version >= 2) return;
+
+    if (version === 1) {
+      this.connection.exec('ALTER TABLE portfolio_cards ADD COLUMN price_updated_at TEXT; PRAGMA user_version = 2');
+      return;
+    }
 
     this.connection.exec('BEGIN IMMEDIATE');
     try {
@@ -44,7 +49,7 @@ export class DatabaseService implements OnModuleDestroy {
           DROP TABLE portfolio_cards_legacy;
         `);
       }
-      this.connection.exec('PRAGMA user_version = 1; COMMIT');
+      this.connection.exec('PRAGMA user_version = 2; COMMIT');
     } catch (error) {
       this.connection.exec('ROLLBACK');
       this.connection.close();

@@ -16,6 +16,7 @@ export type PortfolioCard = NewPortfolioCard & {
   id: number;
   quantity: number;
   addedAt: string;
+  priceUpdatedAt?: string;
 };
 
 export async function getPortfolio(): Promise<PortfolioCard[]> {

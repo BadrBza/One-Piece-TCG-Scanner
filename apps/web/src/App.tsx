@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { getCurrentUser, logout, type AuthUser } from './api/auth';
+import { errorMessage } from './api/http';
 import { AppHeader } from './components/AppHeader';
 import { LoginPage } from './pages/LoginPage';
 import { PortfolioPage } from './pages/PortfolioPage';
@@ -22,7 +23,7 @@ export function App() {
     getCurrentUser()
       .then(account => { if (active) setUser(account); })
       .catch(reason => {
-        if (active) setSessionError(reason instanceof Error ? reason.message : 'Impossible de vérifier la connexion.');
+        if (active) setSessionError(errorMessage(reason, 'Impossible de vérifier la connexion.'));
       })
       .finally(() => { if (active) setCheckingSession(false); });
     return () => { active = false; };
@@ -42,7 +43,7 @@ export function App() {
   useEffect(() => {
     if (checkingSession || sessionError) return;
     if (!user && page !== 'login') navigate('login');
-    if (user && page === 'login') navigate('scanner');
+    if (user && page === 'login') navigate('portfolio');
   }, [user, page, checkingSession, sessionError]);
 
   function navigate(destination: 'login' | 'scanner' | 'portfolio') {
@@ -53,7 +54,7 @@ export function App() {
   function onLogin(account: AuthUser) {
     setUser(account);
     setLogoutError(null);
-    navigate('scanner');
+    navigate('portfolio');
   }
 
   async function onLogout() {
@@ -64,7 +65,7 @@ export function App() {
       setUser(null);
       navigate('login');
     } catch (reason) {
-      setLogoutError(reason instanceof Error ? reason.message : 'La déconnexion a échoué.');
+      setLogoutError(errorMessage(reason, 'La déconnexion a échoué.'));
     } finally {
       setLoggingOut(false);
     }

@@ -22,6 +22,7 @@ export const DATABASE_SCHEMA = `
     variant TEXT,
     expansion TEXT,
     trend_price REAL,
+    price_updated_at TEXT,
     quantity INTEGER NOT NULL DEFAULT 1 CHECK(quantity > 0),
     added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, cardmarket_product_id)

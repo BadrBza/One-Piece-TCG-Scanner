@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import { authenticate, type AuthMode, type AuthUser } from '../api/auth';
+import { errorMessage } from '../api/http';
 
 export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const [mode, setMode] = useState<AuthMode>('login');
@@ -19,7 +20,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
     try {
       onLogin(await authenticate(mode, { email, password }));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Connexion impossible.');
+      setError(errorMessage(reason, 'Connexion impossible.'));
     } finally {
       setBusy(false);
     }

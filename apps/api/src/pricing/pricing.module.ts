@@ -1,17 +1,16 @@
 import { Module } from '@nestjs/common';
 
-import { PricingService } from './pricing.service.js';
+import { CardVariantsService } from './card-variants.service.js';
 import { CardmarketProvider } from './providers/cardmarket.provider.js';
-import { EbayProvider } from './providers/ebay.provider.js';
 
 @Module({
   providers: [
-    PricingService,
     CardmarketProvider,
-    EbayProvider,
+    CardVariantsService,
   ],
   exports: [
-    PricingService,
+    CardmarketProvider,
+    CardVariantsService,
   ],
 })
 export class PricingModule {}

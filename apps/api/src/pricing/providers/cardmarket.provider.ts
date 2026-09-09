@@ -2,10 +2,10 @@ import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { isCardNumber, normalizeCardNumber } from '../../recognition/card-number.js';
 import type { CardRecognition } from '../../schemas/card-recognition.schema.js';
 import { CardmarketCatalogSchema, CardmarketPriceGuideSchema, type CardmarketData } from '../../schemas/cardmarket.schema.js';
-import type { PriceProvider, PriceResult } from '../price-provider.interface.js';
+import type { PriceResult } from '../price-result.js';
 
 @Injectable()
-export class CardmarketProvider implements PriceProvider, OnModuleInit {
+export class CardmarketProvider implements OnModuleInit {
   private cache?: { data: CardmarketData; expires: number };
   private pending?: Promise<CardmarketData>;
 
@@ -47,13 +47,12 @@ export class CardmarketProvider implements PriceProvider, OnModuleInit {
         .map(product => {
           const price = prices.get(product.idProduct);
           return {
-            id: product.idProduct, name: product.name, expansionId: product.idExpansion,
-            lowestPrice: price?.low ?? undefined, trendPrice: price?.trend ?? undefined,
-            average1: price?.avg1 ?? undefined, average7: price?.avg7 ?? undefined,
-            average30: price?.avg30 ?? undefined,
+            id: product.idProduct,
+            name: product.name,
+            trendPrice: price?.trend ?? undefined,
           };
         });
-      return { ...base, updatedAt: guide.createdAt, products,
+      return { ...base, products,
         message: products.length
           ? 'Fiches correspondant au numéro. Vérifie l’édition et la langue sur Cardmarket : le catalogue ne permet pas de confirmer la variante photographiée. Prix du guide, sans frais de port.'
           : 'Aucune fiche Cardmarket trouvée pour ce numéro.',
@@ -61,5 +60,15 @@ export class CardmarketProvider implements PriceProvider, OnModuleInit {
     } catch {
       return { ...base, message: 'Les données Cardmarket sont temporairement indisponibles. Réessaie dans un instant.' };
     }
+  }
+
+  async getTrendPrices(productIds: number[]) {
+    const { guide } = await this.load();
+    const wanted = new Set(productIds);
+    const prices = new Map<number, number>();
+    for (const price of guide.priceGuides) {
+      if (wanted.has(price.idProduct) && price.trend != null) prices.set(price.idProduct, price.trend);
+    }
+    return { prices, updatedAt: guide.createdAt };
   }
 }

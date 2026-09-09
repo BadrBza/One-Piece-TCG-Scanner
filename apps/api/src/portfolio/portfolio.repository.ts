@@ -14,6 +14,7 @@ type PortfolioRow = {
   variant: string | null;
   expansion: string | null;
   trend_price: number | null;
+  price_updated_at: string | null;
   quantity: number;
   added_at: string;
 };
@@ -33,11 +34,12 @@ export class PortfolioRepository {
     const row = this.database.connection.prepare(`
       INSERT INTO portfolio_cards (
         user_id, card_number, name, cardmarket_product_id, image_url,
-        language, rarity, variant, expansion, trend_price
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        language, rarity, variant, expansion, trend_price, price_updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE strftime('%Y-%m-%dT%H:%M:%fZ', 'now') END)
       ON CONFLICT(user_id, cardmarket_product_id) DO UPDATE SET
         quantity = quantity + 1,
-        trend_price = COALESCE(excluded.trend_price, portfolio_cards.trend_price)
+        trend_price = COALESCE(excluded.trend_price, portfolio_cards.trend_price),
+        price_updated_at = COALESCE(excluded.price_updated_at, portfolio_cards.price_updated_at)
       RETURNING *
     `).get(
       userId,
@@ -50,6 +52,7 @@ export class PortfolioRepository {
       card.variant ?? null,
       card.expansion ?? null,
       card.trendPrice ?? null,
+      card.trendPrice ?? null,
     ) as PortfolioRow;
 
     return toPortfolioCard(row);
@@ -59,6 +62,22 @@ export class PortfolioRepository {
     return this.database.connection.prepare(
       'DELETE FROM portfolio_cards WHERE id = ? AND user_id = ?',
     ).run(id, userId).changes > 0;
+  }
+
+  productIds(olderThan?: string): number[] {
+    const where = olderThan ? 'WHERE price_updated_at IS NULL OR price_updated_at < ?' : '';
+    const rows = this.database.connection.prepare(
+      `SELECT DISTINCT cardmarket_product_id FROM portfolio_cards ${where}`,
+    ).all(...(olderThan ? [olderThan] : [])) as Array<{ cardmarket_product_id: number }>;
+    return rows.map(row => row.cardmarket_product_id);
+  }
+
+  updatePrice(productId: number, trendPrice: number, updatedAt: string) {
+    this.database.connection.prepare(`
+      UPDATE portfolio_cards
+      SET trend_price = ?, price_updated_at = ?
+      WHERE cardmarket_product_id = ?
+    `).run(trendPrice, updatedAt, productId);
   }
 
 }
@@ -77,5 +96,6 @@ function toPortfolioCard(row: PortfolioRow): PortfolioCard {
     trendPrice: row.trend_price ?? undefined,
     quantity: row.quantity,
     addedAt: row.added_at,
+    priceUpdatedAt: row.price_updated_at ?? undefined,
   };
 }

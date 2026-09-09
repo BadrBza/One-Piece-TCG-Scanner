@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, Loader2, Plus } from 'lucide-react';
 
 import { addPortfolioCard, type NewPortfolioCard } from '../../../api/portfolio';
+import { errorMessage } from '../../../api/http';
 
 export function AddToPortfolio({ card }: { card: NewPortfolioCard }) {
   const [saving, setSaving] = useState(false);
@@ -15,7 +16,7 @@ export function AddToPortfolio({ card }: { card: NewPortfolioCard }) {
     try {
       setQuantity((await addPortfolioCard(card)).quantity);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Impossible d’ajouter cette carte.');
+      setError(errorMessage(reason, 'Impossible d’ajouter cette carte.'));
     } finally {
       setSaving(false);
     }

@@ -15,6 +15,7 @@ import { CardmarketProvider } from '../dist/pricing/providers/cardmarket.provide
 import { RecognitionService } from '../dist/recognition/recognition.service.js';
 import { CardVariantsService } from '../dist/pricing/card-variants.service.js';
 import { DATABASE_SCHEMA } from '../dist/schemas/database.schema.js';
+import { PortfolioPriceUpdater } from '../dist/portfolio/portfolio-price-updater.service.js';
 
 const origin = 'http://localhost:5173';
 const credentials = { email: 'alice@example.test', password: 'local-test-password' };
@@ -23,6 +24,7 @@ const card = {
   imageUrl: 'https://cardmarketapi.com/cards/42/image', language: 'Japonais',
   rarity: 'SEC', variant: 'Manga', expansion: 'Carrying On His Will', trendPrice: 0,
 };
+const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5V8AAAAASUVORK5CYII=';
 
 async function setup(t, prepareDatabase) {
   const directory = mkdtempSync(join(tmpdir(), 'opscan-tests-'));
@@ -30,11 +32,19 @@ async function setup(t, prepareDatabase) {
   if (prepareDatabase) prepareDatabase(path);
   let app;
   let scanCalls = 0;
+  let variantPhoto;
+  let refreshPrices = async productIds => ({
+    prices: new Map(productIds.map(id => [id, 12.5])),
+    updatedAt: '2026-09-09T01:00:00Z',
+  });
   async function open() {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ConfigService).useValue(new ConfigService({ DATABASE_PATH: path, FRONTEND_URL: origin }))
-      .overrideProvider(CardmarketProvider).useValue({ getPrice: async () => ({ source: 'cardmarket', currency: 'EUR', products: [{ id: 42, ...card }] }) })
-      .overrideProvider(CardVariantsService).useValue({ variants: async (_card, guide) => guide })
+      .overrideProvider(CardmarketProvider).useValue({
+        getPrice: async () => ({ source: 'cardmarket', currency: 'EUR', products: [{ id: 42, ...card }] }),
+        getTrendPrices: productIds => refreshPrices(productIds),
+      })
+      .overrideProvider(CardVariantsService).useValue({ variants: async (_card, guide, photo) => { variantPhoto = photo; return guide; } })
       .overrideProvider(RecognitionService).useValue({ identify: async () => {
         scanCalls++;
         return { cardNumber: card.cardNumber, name: card.name, language: 'JP', rarity: 'SEC', variant: 'manga', confidence: 0.99 };
@@ -55,10 +65,13 @@ async function setup(t, prepareDatabase) {
   return {
     get database() { return app.get(DatabaseService).connection; },
     get scanCalls() { return scanCalls; },
+    get variantPhoto() { return variantPhoto; },
+    get priceUpdater() { return app.get(PortfolioPriceUpdater); },
     call(method, route, payload, cookie, requestOrigin = origin) {
       return app.inject({ method, url: `/api${route}`, payload, headers: { origin: requestOrigin, ...(cookie ? { cookie } : {}) } });
     },
     async reopen() { await app.close(); app = undefined; await open(); },
+    setRefreshPrices(handler) { refreshPrices = handler; },
   };
 }
 
@@ -77,6 +90,7 @@ test('login sessions protect scanner and portfolio, expire and are revoked by lo
   for (const [method, route, payload] of [
     ['GET', '/portfolio'], ['POST', '/portfolio', card],
     ['DELETE', '/portfolio/1'], ['POST', '/cards/scan', { image: 'test' }],
+    ['POST', '/cards/resolve', { cardNumber: 'OP13-118', image }],
     ['GET', '/cards/lookup?number=OP13-118'],
   ]) assert.equal((await server.call(method, route, payload)).statusCode, 401);
   assert.equal(server.scanCalls, 0);
@@ -94,6 +108,8 @@ test('login sessions protect scanner and portfolio, expire and are revoked by lo
   assert.deepEqual((await server.call('GET', '/auth/me', undefined, account.cookie)).json(), account.user);
   assert.equal((await server.call('POST', '/cards/scan', { image: 'test' }, account.cookie)).statusCode, 201);
   assert.equal(server.scanCalls, 1);
+  assert.equal((await server.call('POST', '/cards/resolve', { cardNumber: 'op13-118', image }, account.cookie)).statusCode, 201);
+  assert.equal(server.variantPhoto, image);
   assert.equal((await server.call('POST', '/auth/login', { ...credentials, password: 'wrong-password' })).statusCode, 401);
   assert.equal((await server.call('POST', '/auth/login', { ...credentials, email: 'unknown@example.test' })).statusCode, 401);
   assert.equal((await server.call('POST', '/auth/register', credentials)).statusCode, 409);
@@ -163,14 +179,39 @@ test('portfolio validates input and browser writes reject untrusted origins; log
 test('database upgrade preserves an existing card and permits a second owner of its variant', async t => {
   const server = await setup(t, path => {
     const database = new DatabaseSync(path);
-    database.exec(DATABASE_SCHEMA.replace('cardmarket_product_id INTEGER NOT NULL,', 'cardmarket_product_id INTEGER NOT NULL UNIQUE,'));
+    database.exec(DATABASE_SCHEMA.replace('    price_updated_at TEXT,\n', '').replace('    price_updated_at TEXT,\r\n', '') + ' PRAGMA user_version = 1;');
     database.prepare('INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)').run(1, 'legacy@example.test', 'unused-test-hash');
     database.prepare('INSERT INTO portfolio_cards (user_id, card_number, name, cardmarket_product_id) VALUES (?, ?, ?, ?)').run(1, card.cardNumber, card.name, 42);
     database.close();
   });
-  assert.equal(server.database.prepare('PRAGMA user_version').get().user_version, 1);
-  assert.equal(server.database.prepare('SELECT quantity FROM portfolio_cards WHERE user_id = 1').get().quantity, 1);
+  assert.equal(server.database.prepare('PRAGMA user_version').get().user_version, 2);
+  assert.ok(server.database.prepare("SELECT name FROM pragma_table_info('portfolio_cards') WHERE name = 'price_updated_at'").get());
+  const migrated = server.database.prepare('SELECT quantity, trend_price, price_updated_at FROM portfolio_cards WHERE user_id = 1').get();
+  assert.equal(migrated.quantity, 1);
+  assert.equal(migrated.trend_price, 12.5);
+  assert.equal(migrated.price_updated_at, '2026-09-09T01:00:00Z');
   const bob = await register(server, 'bob@example.test');
   assert.equal((await server.call('POST', '/portfolio', card, bob.cookie)).statusCode, 201);
   assert.equal(server.database.prepare('SELECT COUNT(*) AS total FROM portfolio_cards').get().total, 2);
+});
+
+test('weekly refresh updates every owner and preserves the last price on failure', async t => {
+  const server = await setup(t);
+  const alice = await register(server);
+  const bob = await register(server, 'bob@example.test');
+  await server.call('POST', '/portfolio', card, alice.cookie);
+  await server.call('POST', '/portfolio', card, bob.cookie);
+  server.database.prepare("UPDATE portfolio_cards SET trend_price = 4, price_updated_at = '2020-01-01T00:00:00Z'").run();
+
+  server.setRefreshPrices(async () => { throw new Error('Cardmarket offline'); });
+  await server.priceUpdater.refresh([card.cardmarketProductId]);
+  assert.deepEqual(server.database.prepare('SELECT DISTINCT trend_price FROM portfolio_cards').all().map(row => ({ ...row })), [{ trend_price: 4 }]);
+
+  server.setRefreshPrices(async ids => ({ prices: new Map(ids.map(id => [id, 19.75])), updatedAt: '2026-09-09T02:00:00Z' }));
+  await server.priceUpdater.refresh([card.cardmarketProductId]);
+  const rows = server.database.prepare('SELECT trend_price, price_updated_at FROM portfolio_cards ORDER BY user_id').all().map(row => ({ ...row }));
+  assert.deepEqual(rows, [
+    { trend_price: 19.75, price_updated_at: '2026-09-09T02:00:00Z' },
+    { trend_price: 19.75, price_updated_at: '2026-09-09T02:00:00Z' },
+  ]);
 });

@@ -14,11 +14,15 @@ export async function withGeminiModel<T>(
   try {
     return await run(google(primary));
   } catch (error) {
-    const lastError = error && typeof error === 'object' && 'lastError' in error ? error.lastError : error;
+    const lastError = unwrapProviderError(error);
     const status = APICallError.isInstance(lastError) ? lastError.statusCode : undefined;
     if (primary !== fallback && status !== undefined && (status === 404 || status === 429 || status >= 500)) {
       return run(google(fallback));
     }
     throw error;
   }
+}
+
+export function unwrapProviderError(error: unknown) {
+  return error && typeof error === 'object' && 'lastError' in error ? error.lastError : error;
 }

@@ -1,6 +1,8 @@
-import { type ChangeEvent, useState } from 'react';
+import { Camera, Keyboard, Sparkles } from 'lucide-react';
+import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 
-import { lookupCard, scanCard, type ScanCardResult } from '../../api/scanCard';
+import { isNumberConfirmation, lookupCard, resolveCard, scanCard, type NumberConfirmationResult, type RecognizedScanResult } from '../../api/scanCard';
+import { errorMessage } from '../../api/http';
 import { cardNumberCrop } from './card-number-crop';
 import { ManualLookup } from './components/ManualLookup';
 import { PhotoPicker } from './components/PhotoPicker';
@@ -8,6 +10,7 @@ import { ScanResult } from './components/ScanResult';
 
 const MAX_FILE_SIZE = 7 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+type ScanMode = 'photo' | 'manual';
 
 function readFile(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -18,21 +21,34 @@ function readFile(file: File) {
   });
 }
 
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 export function Scanner() {
+  const [mode, setMode] = useState<ScanMode>('photo');
   const [cardNumber, setCardNumber] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
-  const [result, setResult] = useState<ScanCardResult | null>(null);
+  const [result, setResult] = useState<RecognizedScanResult | null>(null);
+  const [confirmation, setConfirmation] = useState<NumberConfirmationResult | null>(null);
   const [resultSource, setResultSource] = useState<'photo' | 'manual'>('photo');
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const resultPanel = useRef<HTMLElement>(null);
 
   const busy = isImporting || isScanning || isLookingUp;
+
+  useEffect(() => {
+    if ((result || confirmation) && window.innerWidth < 1024) {
+      resultPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [result, confirmation]);
+
+  function selectMode(nextMode: ScanMode) {
+    if (busy || nextMode === mode) return;
+    setMode(nextMode);
+    setError(null);
+    setResult(null);
+    setConfirmation(null);
+  }
 
   async function importPhoto(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -41,6 +57,7 @@ export function Scanner() {
 
     setError(null);
     setResult(null);
+    setConfirmation(null);
 
     if (!IMAGE_TYPES.includes(file.type)) {
       setError('Choisis une photo au format JPG, PNG ou WebP.');
@@ -69,13 +86,42 @@ export function Scanner() {
     setResult(null);
     try {
       const scanResult = await scanCard(preview, await cardNumberCrop(preview));
-      setResult(scanResult);
       setResultSource('photo');
-      setCardNumber(scanResult.card.cardNumber);
+      if (isNumberConfirmation(scanResult)) {
+        setConfirmation(scanResult);
+      } else {
+        setResult(scanResult);
+        setCardNumber(scanResult.card.cardNumber);
+      }
     } catch (reason) {
       setError(errorMessage(reason, 'Impossible de scanner cette carte pour le moment.'));
     } finally {
       setIsScanning(false);
+    }
+  }
+
+  async function confirmCardNumber(number: string) {
+    if (!confirmation || !preview || busy) return;
+    setIsLookingUp(true);
+    setError(null);
+    try {
+      const lookup = await resolveCard(number, preview);
+      setResult({
+        ...lookup,
+        card: {
+          ...lookup.card,
+          language: confirmation.card.language,
+          variant: confirmation.card.variant,
+          confidence: confirmation.card.confidence,
+        },
+      });
+      setCardNumber(number);
+      setConfirmation(null);
+      setResultSource('photo');
+    } catch (reason) {
+      setError(errorMessage(reason, 'Impossible de rechercher cette carte.'));
+    } finally {
+      setIsLookingUp(false);
     }
   }
 
@@ -85,6 +131,7 @@ export function Scanner() {
     setIsLookingUp(true);
     setError(null);
     setResult(null);
+    setConfirmation(null);
     try {
       setResult(await lookupCard(cardNumber));
       setResultSource('manual');
@@ -96,27 +143,49 @@ export function Scanner() {
   }
 
   return (
-    <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.15fr)]">
-      <PhotoPicker
-        busy={busy}
-        canScan={Boolean(preview) && !busy}
-        isImporting={isImporting}
-        isScanning={isScanning}
-        onChange={importPhoto}
-        onScan={() => void recognizeCard()}
-        preview={preview}
-      />
+    <section className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-blue-600">
+            <Sparkles className="size-4" aria-hidden="true" /> Identification assistée par IA
+          </div>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Identifie et estime ta carte</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">Importe une photo nette : l’application lit la référence, reconnaît la variante et affiche sa cote Cardmarket.</p>
+        </div>
+        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm" role="tablist" aria-label="Méthode de recherche">
+          <ModeButton active={mode === 'photo'} disabled={busy} icon={<Camera className="size-4" />} onClick={() => selectMode('photo')}>Photo</ModeButton>
+          <ModeButton active={mode === 'manual'} disabled={busy} icon={<Keyboard className="size-4" />} onClick={() => selectMode('manual')}>Numéro</ModeButton>
+        </div>
+      </div>
 
-      <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <ManualLookup
-          cardNumber={cardNumber}
-          disabled={busy}
-          isLoading={isLookingUp}
-          onChange={setCardNumber}
-          onSubmit={() => void findCard()}
-        />
-        <ScanResult error={error} result={result} source={resultSource} />
-      </aside>
-    </div>
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.15fr)]">
+        {mode === 'photo' ? (
+          <PhotoPicker busy={busy} isImporting={isImporting} isScanning={isScanning}
+            onChange={importPhoto} onScan={() => void recognizeCard()} preview={preview} />
+        ) : (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            <ManualLookup cardNumber={cardNumber} disabled={busy} isLoading={isLookingUp}
+              onChange={setCardNumber} onSubmit={() => void findCard()} />
+          </div>
+        )}
+
+        <aside ref={resultPanel} className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <ScanResult confirmation={confirmation} error={error} isConfirming={isLookingUp}
+            isLoading={isScanning || isLookingUp} loadingLabel={isScanning ? 'Analyse de la photo et recherche de la cote…' : 'Recherche de la carte…'}
+            onConfirm={number => void confirmCardNumber(number)} result={result} source={resultSource} />
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function ModeButton({ active, children, disabled, icon, onClick }: { active: boolean; children: string; disabled: boolean; icon: ReactNode; onClick: () => void }) {
+  return (
+    <button type="button" role="tab" aria-selected={active} disabled={disabled} onClick={onClick}
+      className={active
+        ? 'inline-flex min-h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-60'
+        : 'inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60'}>
+      {icon}{children}
+    </button>
   );
 }

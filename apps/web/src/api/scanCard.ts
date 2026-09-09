@@ -11,41 +11,52 @@ export interface CardRecognition {
 
 export interface PriceResult {
   source: string;
-  lowestPrice?: number;
-  averagePrice?: number;
-  trendPrice?: number;
   currency: string;
   message?: string;
-  updatedAt?: string;
+  selectedProductId?: number;
+  matchConfidence?: number;
   products?: Array<{
     id: number;
     name: string;
-    expansionId: number;
     version?: number;
     expansion?: string;
     imageUrl?: string;
     languageLabel?: string;
     rarity?: string;
     variantLabel?: string;
-    metadataEstimated?: boolean;
-    lowestPrice?: number;
     trendPrice?: number;
-    average1?: number;
-    average7?: number;
-    average30?: number;
   }>;
 }
 
-export interface ScanCardResult {
+export interface RecognizedScanResult {
   card: CardRecognition;
   prices: {
     cardmarket: PriceResult;
-    ebay: PriceResult;
   };
 }
 
-export async function lookupCard(number: string): Promise<ScanCardResult> {
+export interface NumberConfirmationResult {
+  status: 'number_confirmation_required';
+  card: CardRecognition;
+  numberCandidates: [string, string];
+}
+
+export type ScanCardResult = RecognizedScanResult | NumberConfirmationResult;
+
+export function isNumberConfirmation(result: ScanCardResult): result is NumberConfirmationResult {
+  return 'status' in result;
+}
+
+export async function lookupCard(number: string): Promise<RecognizedScanResult> {
   return request(`/cards/lookup?number=${encodeURIComponent(number.trim())}`);
+}
+
+export async function resolveCard(number: string, image: string): Promise<RecognizedScanResult> {
+  return request('/cards/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cardNumber: number, image }),
+  });
 }
 
 export async function scanCard(

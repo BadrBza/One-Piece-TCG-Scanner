@@ -17,7 +17,6 @@ export function AppHeader({ activePage, email, loggingOut, onLogout }: Props) {
           </span>
           <span className="hidden min-w-0 sm:block">
             <span className="block truncate text-sm font-semibold text-slate-900">OP Card Scan</span>
-            <span className="block truncate text-xs text-slate-500">Identification et cote</span>
           </span>
         </a>
 

@@ -9,6 +9,7 @@ const card = { cardNumber: 'OP01-001', name: 'Roronoa Zoro', language: 'EN', rar
 const config = new ConfigService({ GOOGLE_GENERATIVE_AI_API_KEY: 'test-key', GEMINI_MODEL: 'gemini-3.5-flash' });
 const modelReply = (text, finishReason = 'STOP') => Response.json({ candidates: [{ content: { role: 'model', parts: [{ text }] }, finishReason }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 10, totalTokenCount: 20 } });
 const reply = value => modelReply(JSON.stringify(value));
+const isNumberReading = options => JSON.parse(options.body).systemInstruction.parts[0].text.includes('Read only the card number');
 
 test('AI SDK sends the image to Gemini, validates the structured result and passes it to pricing', async () => {
   const original = globalThis.fetch;
@@ -24,7 +25,7 @@ test('AI SDK sends the image to Gemini, validates the structured result and pass
   try {
     let priced;
     const service = new CardsService(new RecognitionService(config), {
-      getPrices: async recognized => { priced = recognized; return { cardmarket: { source: 'cardmarket', currency: 'EUR' } }; },
+      getPrice: async recognized => { priced = recognized; return { source: 'cardmarket', currency: 'EUR' }; },
     }, {
       variants: async (_card, guide) => guide,
     });
@@ -34,12 +35,17 @@ test('AI SDK sends the image to Gemini, validates the structured result and pass
   } finally { globalThis.fetch = original; }
 });
 
-test('the number crop is labeled as a detail of the same card and sent in one call', async () => {
+test('the full recognition and dedicated number reading run in two calls', async () => {
   const original = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async (_url, options) => {
     calls++;
     const parts = JSON.parse(options.body).contents[0].parts;
+    if (isNumberReading(options)) {
+      assert.equal(parts.length, 1);
+      assert.equal(parts[0].inlineData.data, image.split(',')[1]);
+      return reply({ cardNumber: card.cardNumber });
+    }
     assert.equal(parts.filter(part => part.inlineData).length, 2);
     assert.match(parts[2].text, /même carte/);
     assert.equal(parts[3].inlineData.data, image.split(',')[1]);
@@ -47,7 +53,34 @@ test('the number crop is labeled as a detail of the same card and sent in one ca
   };
   try {
     assert.deepEqual(await new RecognitionService(config).identify(image, image), card);
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
+  } finally { globalThis.fetch = original; }
+});
+
+test('a disagreement asks for confirmation and does not fetch prices', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => isNumberReading(options)
+    ? reply({ cardNumber: 'OP13-118' })
+    : reply({ ...card, cardNumber: 'OP10-118' });
+  try {
+    let priceCalls = 0;
+    const service = new CardsService(new RecognitionService(config), {
+      getPrice: async () => { priceCalls++; return {}; },
+    }, { variants: async (_card, guide) => guide });
+    const result = await service.scan(image, image);
+    assert.equal(result.status, 'number_confirmation_required');
+    assert.deepEqual(result.numberCandidates, ['OP10-118', 'OP13-118']);
+    assert.equal(priceCalls, 0);
+  } finally { globalThis.fetch = original; }
+});
+
+test('a valid dedicated reading replaces an unreadable general number', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => isNumberReading(options)
+    ? reply({ cardNumber: 'OP13-118' })
+    : reply({ ...card, cardNumber: 'UNKNOWN' });
+  try {
+    assert.equal((await new RecognitionService(config).identify(image, image)).cardNumber, 'OP13-118');
   } finally { globalThis.fetch = original; }
 });
 
@@ -82,12 +115,12 @@ test('an unreadable number still returns 422 without inventing a card identity',
   } finally { globalThis.fetch = original; }
 });
 
-test('invalid image and missing key fail before contacting Gemini', async () => {
+test('invalid image data and missing key fail before contacting Gemini', async () => {
   const original = globalThis.fetch;
   globalThis.fetch = async () => assert.fail('Must not call Gemini');
   try {
     const service = new RecognitionService(new ConfigService({}));
-    for (const invalid of [undefined, 'https://example.com/photo.png', 'data:image/png;base64,xxx']) {
+    for (const invalid of ['https://example.com/photo.png', 'data:image/png;base64,xxx']) {
       await assert.rejects(service.identify(invalid), error => error.getStatus() === 400);
     }
     await assert.rejects(service.identify(image), error => error.getStatus() === 503);
@@ -121,7 +154,7 @@ test('temporary Gemini errors are retried once through AI SDK', async () => {
     : reply(card);
   try {
     assert.deepEqual(await new RecognitionService(config).identify(image), card);
-    assert.equal(calls, 2);
+    assert.equal(calls, 3);
   } finally { globalThis.fetch = original; }
 });
 

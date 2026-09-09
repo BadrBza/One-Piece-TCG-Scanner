@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { OriginGuard } from './auth/origin.guard.js';
 
 import { CardsModule } from './cards/cards.module.js';
@@ -17,6 +18,7 @@ import { RecognitionModule } from './recognition/recognition.module.js';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     AuthModule,
     RecognitionModule,

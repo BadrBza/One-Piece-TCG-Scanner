@@ -1,15 +1,20 @@
-import type { ScanCardResult } from '../../../api/scanCard';
+import type { NumberConfirmationResult, RecognizedScanResult } from '../../../api/scanCard';
 import { CardmarketPrices } from './CardmarketPrices';
 import { languageLabels, variantLabels } from '../labels';
-import { FileSearch, ScanLine } from 'lucide-react';
+import { FileSearch, Loader2, ScanLine } from 'lucide-react';
 
 type Props = {
   error: string | null;
-  result: ScanCardResult | null;
+  result: RecognizedScanResult | null;
+  confirmation: NumberConfirmationResult | null;
+  isConfirming: boolean;
+  isLoading: boolean;
+  loadingLabel: string;
+  onConfirm: (number: string) => void;
   source: 'photo' | 'manual';
 };
 
-export function ScanResult({ error, result, source }: Props) {
+export function ScanResult({ confirmation, error, isConfirming, isLoading, loadingLabel, onConfirm, result, source }: Props) {
   return (
     <>
       <div className="flex items-center gap-3">
@@ -28,7 +33,26 @@ export function ScanResult({ error, result, source }: Props) {
         </p>
       )}
 
-      {result ? (
+      {isLoading && !confirmation ? (
+        <div className="mt-6 flex min-h-56 flex-col items-center justify-center rounded-xl bg-slate-50 px-5 text-center" role="status">
+          <Loader2 className="size-9 animate-spin text-blue-600" aria-hidden="true" />
+          <p className="mt-4 font-semibold text-slate-900">Analyse en cours</p>
+          <p className="mt-1 max-w-sm text-sm text-slate-500">{loadingLabel}</p>
+        </div>
+      ) : confirmation ? (
+        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <h3 className="font-semibold text-amber-950">Confirme le numéro imprimé</h3>
+          <p className="mt-1 text-sm text-amber-800">Les deux lectures ne correspondent pas. Compare-les avec le numéro visible sur ta photo.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {confirmation.numberCandidates.map(number => (
+              <button key={number} type="button" disabled={isConfirming} onClick={() => onConfirm(number)}
+                className="min-h-11 rounded-lg border border-amber-300 bg-white px-4 font-semibold text-slate-900 hover:border-blue-500 disabled:opacity-50">
+                {number}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : result ? (
         <div className="mt-5 space-y-5">
           <dl className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
             <CardField label="Carte" value={result.card.name} />

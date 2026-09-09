@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Coins, ExternalLink } from 'lucide-react';
 
 import type { CardRecognition, PriceResult } from '../../../api/scanCard';
@@ -15,8 +15,10 @@ function title(product: Product) {
 }
 
 export function CardmarketPrices({ price, card }: { price: PriceResult; card: CardRecognition }) {
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(price.selectedProductId ?? null);
   const selected = price.products?.find(product => product.id === selectedId);
+
+  useEffect(() => setSelectedId(price.selectedProductId ?? null), [price]);
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 text-slate-900 sm:p-5" aria-label="Variantes Cardmarket">
@@ -33,7 +35,7 @@ function SelectedVariant({ cardNumber, product, onBack }: { cardNumber: string; 
   return (
     <>
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">Estimation Cardmarket</p>
-      <h3 className="mt-1 text-xl font-semibold">Cote de la variante choisie</h3>
+      <h3 className="mt-1 text-xl font-semibold">Cote de ta carte</h3>
       <div className="mt-3 space-y-3">
         {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="mx-auto max-h-72 rounded-lg border border-slate-200 bg-slate-50 object-contain p-2" />}
         <p className="font-medium">{title(product)}</p>

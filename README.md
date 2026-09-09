@@ -83,9 +83,12 @@ Lancer pnpm dev puis ouvrir http://localhost:5173.
 ## Comptes et collection
 
 Après avoir choisi une variante, cliquer sur **Ajouter à ma collection**.
+Après un scan photo, Gemini compare la carte aux images Cardmarket et ouvre
+directement la variante la plus proche. Le bouton **Changer de variante** permet
+toujours de consulter les autres fiches de la même référence.
 Un nouvel ajout de la même variante augmente sa quantité pour le compte connecté.
 La page **Ma collection** affiche les images de référence, les langues, raretés,
-quantités et cotes enregistrées à l'ajout. Les prix ne sont pas actualisés
+quantités et cotes Cardmarket actualisées chaque semaine
 automatiquement. Retirer une variante supprime tous ses exemplaires après confirmation.
 
 Les comptes, sessions et cartes sont enregistrés dans SQLite. La base est créée

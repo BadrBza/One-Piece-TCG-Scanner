@@ -6,6 +6,10 @@ export class ApiError extends Error {
   }
 }
 
+export function errorMessage(reason: unknown, fallback: string) {
+  return reason instanceof Error ? reason.message : fallback;
+}
+
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
   try {

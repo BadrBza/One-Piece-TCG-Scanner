@@ -21,4 +21,5 @@ export type PortfolioCard = AddPortfolioCard & {
   id: number;
   quantity: number;
   addedAt: string;
+  priceUpdatedAt?: string;
 };
