@@ -12,11 +12,11 @@ export function AppHeader({ activePage, email, loggingOut, onLogout }: Props) {
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 py-3 backdrop-blur">
       <nav aria-label="Navigation principale" className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
         <a href="#scanner" className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
-          <span className="flex size-10 shrink-0 items-center justify-center p-1">
-            <img src="/straw-hat-logo.png" alt="" className="size-full object-contain" />
+          <span className="flex size-12 shrink-0 items-center justify-center">
+            <img src="/hakiscan-logo.png" alt="" className="size-full object-contain" />
           </span>
           <span className="hidden min-w-0 sm:block">
-            <span className="block truncate text-sm font-semibold text-slate-900">OP Card Scan</span>
+            <span className="block truncate text-sm font-semibold text-slate-900">HakiScan</span>
           </span>
         </a>
 

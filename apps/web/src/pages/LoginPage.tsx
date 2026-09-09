@@ -30,8 +30,8 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 text-slate-900">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-3">
-          <img src="/straw-hat-logo.png" alt="" className="h-10 w-12 object-contain" />
-          <span className="text-lg font-semibold tracking-tight">OP Card Scan</span>
+          <img src="/hakiscan-logo.png" alt="" className="size-14 object-contain" />
+          <span className="text-lg font-semibold tracking-tight">HakiScan</span>
         </div>
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h1 className="text-2xl font-semibold tracking-tight">{registering ? 'Créer un compte' : 'Connexion'}</h1>

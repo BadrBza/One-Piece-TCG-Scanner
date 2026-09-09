@@ -1,4 +1,4 @@
-# OnePiece TCG Scanner
+# HakiScan
 
 Application MVP pour scanner une carte One Piece TCG et recuperer une
 estimation Cardmarket, avec une collection persistante par compte.
