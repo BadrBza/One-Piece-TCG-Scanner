@@ -1,4 +1,4 @@
-import { request } from './http';
+import { request } from '../../lib/http';
 
 export interface CardRecognition {
   cardNumber: string;

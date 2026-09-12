@@ -14,14 +14,24 @@ estimation Cardmarket, avec une collection persistante par compte.
 apps/
   web/
     src/
-      api/
+      app/
+        App.tsx
       components/
+      lib/http.ts
+      features/auth/
+        auth.api.ts
+        useSession.ts
       features/scanner/
+        Scanner.tsx
+        scanner.api.ts
+        useScanner.ts
+        image-file.ts
         components/
       features/portfolio/
+        portfolio.api.ts
+        usePortfolio.ts
         components/
       pages/
-      App.tsx
       main.tsx
 
   api/
@@ -30,13 +40,26 @@ apps/
       auth/
       database/
       portfolio/
-      schemas/
-      prompts/
       recognition/
+        prompts/
       pricing/
+        prompts/
+        providers/
       app.module.ts
       main.ts
 ```
+
+Les fichiers sont regroupés par fonctionnalité. Côté API, chaque schéma Zod
+reste auprès du module qui le possède ; les prompts restent auprès des services
+de reconnaissance ou de prix qui les utilisent. Les contrôleurs gèrent HTTP,
+les services les traitements, et les repositories les requêtes SQL.
+
+Côté web, les fichiers `*.api.ts` regroupent les appels d'une fonctionnalité et
+utilisent le transport commun `lib/http.ts`. Les hooks `useScanner`,
+`useSession` et `usePortfolio` gèrent les états et opérations ; les pages et
+composants composent l'interface. `app/App.tsx` assemble les pages et conserve
+la navigation. Les utilitaires de lecture et validation des photos sont dans
+`features/scanner/image-file.ts`.
 
 ## Flux principal
 

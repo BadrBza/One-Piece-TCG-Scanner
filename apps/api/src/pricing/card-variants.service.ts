@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { generateText, Output } from 'ai';
 
-import { VARIANT_METADATA_PROMPT } from '../prompts/variant-metadata.prompt.js';
-import { MATCH_CARD_VARIANT_PROMPT } from '../prompts/match-card-variant.prompt.js';
+import { VARIANT_METADATA_PROMPT } from './prompts/variant-metadata.prompt.js';
+import { MATCH_CARD_VARIANT_PROMPT } from './prompts/match-card-variant.prompt.js';
 import { withGeminiModel } from '../recognition/gemini-model.js';
-import type { CardRecognition } from '../schemas/card-recognition.schema.js';
-import { OptcgCardsSchema, VariantMetadataSchema, VariantPhotoAnalysisSchema, type VariantMetadata } from '../schemas/card-variants.schema.js';
+import type { CardRecognition } from '../recognition/card-recognition.schema.js';
+import { OptcgCardsSchema, VariantMetadataSchema, VariantPhotoAnalysisSchema, type VariantMetadata } from './card-variants.schema.js';
 import type { PriceResult } from './price-result.js';
 
 type Product = NonNullable<PriceResult['products']>[number];

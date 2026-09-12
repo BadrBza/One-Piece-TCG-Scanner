@@ -1,42 +1,21 @@
 import { useEffect, useState } from 'react';
 
-import { getCurrentUser, logout, type AuthUser } from './api/auth';
-import { errorMessage } from './api/http';
-import { AppHeader } from './components/AppHeader';
-import { LoginPage } from './pages/LoginPage';
-import { PortfolioPage } from './pages/PortfolioPage';
-import { ScannerPage } from './pages/ScannerPage';
+import type { AuthUser } from '../features/auth/auth.api';
+import { useSession } from '../features/auth/useSession';
+import { AppHeader } from '../components/AppHeader';
+import { LoginPage } from '../pages/LoginPage';
+import { PortfolioPage } from '../pages/PortfolioPage';
+import { ScannerPage } from '../pages/ScannerPage';
 
 export function App() {
   const [page, setPage] = useState(currentPage);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [sessionError, setSessionError] = useState<string | null>(null);
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const [sessionAttempt, setSessionAttempt] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    setCheckingSession(true);
-    setSessionError(null);
-    getCurrentUser()
-      .then(account => { if (active) setUser(account); })
-      .catch(reason => {
-        if (active) setSessionError(errorMessage(reason, 'Impossible de vérifier la connexion.'));
-      })
-      .finally(() => { if (active) setCheckingSession(false); });
-    return () => { active = false; };
-  }, [sessionAttempt]);
+  const { user, checkingSession, loggingOut, sessionError, logoutError, acceptUser, signOut, retrySession } = useSession();
 
   useEffect(() => {
     const onHashChange = () => setPage(currentPage());
-    const onSessionExpired = () => { setUser(null); setLogoutError(null); };
     window.addEventListener('hashchange', onHashChange);
-    window.addEventListener('session-expired', onSessionExpired);
     return () => {
       window.removeEventListener('hashchange', onHashChange);
-      window.removeEventListener('session-expired', onSessionExpired);
     };
   }, []);
 
@@ -52,23 +31,12 @@ export function App() {
   }
 
   function onLogin(account: AuthUser) {
-    setUser(account);
-    setLogoutError(null);
+    acceptUser(account);
     navigate('portfolio');
   }
 
   async function onLogout() {
-    setLoggingOut(true);
-    setLogoutError(null);
-    try {
-      await logout();
-      setUser(null);
-      navigate('login');
-    } catch (reason) {
-      setLogoutError(errorMessage(reason, 'La déconnexion a échoué.'));
-    } finally {
-      setLoggingOut(false);
-    }
+    if (await signOut()) navigate('login');
   }
 
   if (checkingSession || sessionError) {
@@ -77,7 +45,7 @@ export function App() {
         {sessionError ? (
           <div className="space-y-4 text-center">
             <p role="alert">{sessionError}</p>
-            <button onClick={() => setSessionAttempt(attempt => attempt + 1)} className="rounded-md bg-[#8f2430] px-4 py-3 text-sm font-semibold text-white hover:bg-[#761d27]">Réessayer</button>
+            <button onClick={retrySession} className="rounded-md bg-[#8f2430] px-4 py-3 text-sm font-semibold text-white hover:bg-[#761d27]">Réessayer</button>
           </div>
         ) : <p role="status">Vérification de la connexion…</p>}
       </main>

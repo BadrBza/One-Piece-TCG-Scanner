@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service.js';
-import type { AddPortfolioCard, PortfolioCard } from '../schemas/portfolio.schema.js';
+import type { AddPortfolioCard, PortfolioCard } from './portfolio.schema.js';
 
 type PortfolioRow = {
   id: number;

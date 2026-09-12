@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 
-import type { CardRecognition, PriceResult } from '../../../api/scanCard';
+import type { CardRecognition, PriceResult } from '../scanner.api';
 import { languageLabels } from '../labels';
 import { AddToPortfolio } from '../../portfolio/components/AddToPortfolio';
 

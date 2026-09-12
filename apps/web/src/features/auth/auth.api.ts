@@ -1,4 +1,4 @@
-import { request } from './http';
+import { request } from '../../lib/http';
 
 export type AuthUser = { id: number; email: string };
 export type Credentials = { email: string; password: string };

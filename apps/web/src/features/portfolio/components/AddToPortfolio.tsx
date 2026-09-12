@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Check, Loader2, Plus } from 'lucide-react';
 
-import { addPortfolioCard, type NewPortfolioCard } from '../../../api/portfolio';
-import { errorMessage } from '../../../api/http';
+import { addPortfolioCard, type NewPortfolioCard } from '../portfolio.api';
+import { errorMessage } from '../../../lib/http';
 
 export function AddToPortfolio({ card }: { card: NewPortfolioCard }) {
   const [saving, setSaving] = useState(false);

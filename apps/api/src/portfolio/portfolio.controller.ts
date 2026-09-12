@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Header, NotFoundExc
 
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
 import { PortfolioRepository } from './portfolio.repository.js';
-import { AddPortfolioCardSchema } from '../schemas/portfolio.schema.js';
+import { AddPortfolioCardSchema } from './portfolio.schema.js';
 
 @Controller('portfolio')
 @UseGuards(AuthGuard)

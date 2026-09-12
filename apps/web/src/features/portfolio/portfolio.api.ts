@@ -1,4 +1,4 @@
-import { request } from './http';
+import { request } from '../../lib/http';
 
 export type NewPortfolioCard = {
   cardNumber: string;

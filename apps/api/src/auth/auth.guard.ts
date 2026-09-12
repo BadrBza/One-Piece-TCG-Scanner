@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, type CanActivate, type ExecutionCont
 import type { FastifyRequest } from 'fastify';
 
 import { AuthService } from './auth.service.js';
-import type { AuthUser } from '../schemas/auth.schema.js';
+import type { AuthUser } from './auth.schema.js';
 
 export type AuthenticatedRequest = FastifyRequest & { user: AuthUser };
 

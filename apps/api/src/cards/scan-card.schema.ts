@@ -17,6 +17,6 @@ export const ResolveCardSchema = z.object({
 
 export type CardNumberConfirmation = {
   status: 'number_confirmation_required';
-  card: import('./card-recognition.schema.js').CardRecognition;
+  card: import('../recognition/card-recognition.schema.js').CardRecognition;
   numberCandidates: [string, string];
 };

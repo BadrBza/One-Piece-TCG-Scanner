@@ -11,7 +11,7 @@ import {
 import { CardsService } from './cards.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { isCardNumber, normalizeCardNumber } from '../recognition/card-number.js';
-import { ResolveCardSchema, ScanCardSchema } from '../schemas/scan-card.schema.js';
+import { ResolveCardSchema, ScanCardSchema } from './scan-card.schema.js';
 
 @Controller('cards')
 @UseGuards(AuthGuard)

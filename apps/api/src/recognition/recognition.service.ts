@@ -10,10 +10,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { APICallError, generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from 'ai';
 
-import { IDENTIFY_CARD_PROMPT } from '../prompts/identify-card.prompt.js';
-import { READ_CARD_NUMBER_PROMPT } from '../prompts/read-card-number.prompt.js';
-import { CardRecognitionSchema, type CardRecognition } from '../schemas/card-recognition.schema.js';
-import { CardNumberSchema, type CardNumberConfirmation } from '../schemas/scan-card.schema.js';
+import { IDENTIFY_CARD_PROMPT } from './prompts/identify-card.prompt.js';
+import { READ_CARD_NUMBER_PROMPT } from './prompts/read-card-number.prompt.js';
+import { CardRecognitionSchema, type CardRecognition } from './card-recognition.schema.js';
+import { CardNumberSchema, type CardNumberConfirmation } from '../cards/scan-card.schema.js';
 import { isCardNumber, normalizeCardNumber } from './card-number.js';
 import { unwrapProviderError, withGeminiModel } from './gemini-model.js';
 

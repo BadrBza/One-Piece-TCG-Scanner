@@ -1,146 +1,24 @@
 import { Camera, Keyboard } from 'lucide-react';
-import { type ChangeEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 
-import { isNumberConfirmation, lookupCard, resolveCard, scanCard, type NumberConfirmationResult, type RecognizedScanResult } from '../../api/scanCard';
-import { errorMessage } from '../../api/http';
-import { cardNumberCrop } from './card-number-crop';
+import { useScanner } from './useScanner';
 import { ManualLookup } from './components/ManualLookup';
 import { PhotoPicker } from './components/PhotoPicker';
 import { ScanResult } from './components/ScanResult';
 
-const MAX_FILE_SIZE = 7 * 1024 * 1024;
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-type ScanMode = 'photo' | 'manual';
-
-function readFile(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 export function Scanner() {
-  const [mode, setMode] = useState<ScanMode>('photo');
-  const [cardNumber, setCardNumber] = useState('');
-  const [preview, setPreview] = useState<string | null>(null);
-  const [result, setResult] = useState<RecognizedScanResult | null>(null);
-  const [confirmation, setConfirmation] = useState<NumberConfirmationResult | null>(null);
-  const [resultSource, setResultSource] = useState<'photo' | 'manual'>('photo');
-  const [error, setError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [isLookingUp, setIsLookingUp] = useState(false);
+  const {
+    mode, cardNumber, setCardNumber, preview, result, confirmation, resultSource,
+    error, isImporting, isScanning, isLookingUp, busy, selectMode, importPhoto,
+    recognizeCard, confirmCardNumber, findCard,
+  } = useScanner();
   const resultPanel = useRef<HTMLElement>(null);
-
-  const busy = isImporting || isScanning || isLookingUp;
 
   useEffect(() => {
     if ((result || confirmation) && window.innerWidth < 1024) {
       resultPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [result, confirmation]);
-
-  function selectMode(nextMode: ScanMode) {
-    if (busy || nextMode === mode) return;
-    setMode(nextMode);
-    setError(null);
-    setResult(null);
-    setConfirmation(null);
-  }
-
-  async function importPhoto(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    setError(null);
-    setResult(null);
-    setConfirmation(null);
-
-    if (!IMAGE_TYPES.includes(file.type)) {
-      setError('Choisis une photo au format JPG, PNG ou WebP.');
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      setError('Cette photo est trop volumineuse. La taille maximale est de 7 Mo.');
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      setPreview(await readFile(file));
-    } catch (reason) {
-      setError(errorMessage(reason, 'Impossible de lire cette photo. Essaie avec une autre image.'));
-    } finally {
-      setIsImporting(false);
-    }
-  }
-
-  async function recognizeCard() {
-    if (!preview || busy) return;
-
-    setIsScanning(true);
-    setError(null);
-    setResult(null);
-    try {
-      const scanResult = await scanCard(preview, await cardNumberCrop(preview));
-      setResultSource('photo');
-      if (isNumberConfirmation(scanResult)) {
-        setConfirmation(scanResult);
-      } else {
-        setResult(scanResult);
-        setCardNumber(scanResult.card.cardNumber);
-      }
-    } catch (reason) {
-      setError(errorMessage(reason, 'Impossible de scanner cette carte pour le moment.'));
-    } finally {
-      setIsScanning(false);
-    }
-  }
-
-  async function confirmCardNumber(number: string) {
-    if (!confirmation || !preview || busy) return;
-    setIsLookingUp(true);
-    setError(null);
-    try {
-      const lookup = await resolveCard(number, preview);
-      setResult({
-        ...lookup,
-        card: {
-          ...lookup.card,
-          language: confirmation.card.language,
-          variant: confirmation.card.variant,
-          confidence: confirmation.card.confidence,
-        },
-      });
-      setCardNumber(number);
-      setConfirmation(null);
-      setResultSource('photo');
-    } catch (reason) {
-      setError(errorMessage(reason, 'Impossible de rechercher cette carte.'));
-    } finally {
-      setIsLookingUp(false);
-    }
-  }
-
-  async function findCard() {
-    if (!cardNumber.trim() || busy) return;
-
-    setIsLookingUp(true);
-    setError(null);
-    setResult(null);
-    setConfirmation(null);
-    try {
-      setResult(await lookupCard(cardNumber));
-      setResultSource('manual');
-    } catch (reason) {
-      setError(errorMessage(reason, 'Recherche impossible.'));
-    } finally {
-      setIsLookingUp(false);
-    }
-  }
 
   return (
     <section className="space-y-5">

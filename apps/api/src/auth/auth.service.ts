@@ -3,7 +3,7 @@ import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 import { AuthRepository } from './auth.repository.js';
-import type { AuthUser, Credentials } from '../schemas/auth.schema.js';
+import type { AuthUser, Credentials } from './auth.schema.js';
 
 const scryptAsync = promisify(scrypt);
 const SESSION_DAYS = 30;

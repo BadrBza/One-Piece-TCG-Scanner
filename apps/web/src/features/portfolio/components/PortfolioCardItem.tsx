@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
-import type { PortfolioCard } from '../../../api/portfolio';
-import { errorMessage } from '../../../api/http';
+import type { PortfolioCard } from '../portfolio.api';
+import { errorMessage } from '../../../lib/http';
 
 const euros = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 const dates = new Intl.DateTimeFormat('fr-BE', { dateStyle: 'medium' });

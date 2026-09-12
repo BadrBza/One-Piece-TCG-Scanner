@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { CardmarketProvider } from '../pricing/providers/cardmarket.provider.js';
 import { RecognitionService } from '../recognition/recognition.service.js';
 import { CardVariantsService } from '../pricing/card-variants.service.js';
-import type { CardRecognition } from '../schemas/card-recognition.schema.js';
-import type { CardNumberConfirmation } from '../schemas/scan-card.schema.js';
+import type { CardRecognition } from '../recognition/card-recognition.schema.js';
+import type { CardNumberConfirmation } from './scan-card.schema.js';
 
 @Injectable()
 export class CardsService {

@@ -1,7 +1,7 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { isCardNumber, normalizeCardNumber } from '../../recognition/card-number.js';
-import type { CardRecognition } from '../../schemas/card-recognition.schema.js';
-import { CardmarketCatalogSchema, CardmarketPriceGuideSchema, type CardmarketData } from '../../schemas/cardmarket.schema.js';
+import type { CardRecognition } from '../../recognition/card-recognition.schema.js';
+import { CardmarketCatalogSchema, CardmarketPriceGuideSchema, type CardmarketData } from '../cardmarket.schema.js';
 import type { PriceResult } from '../price-result.js';
 
 @Injectable()

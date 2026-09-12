@@ -1,4 +1,4 @@
-import type { CardRecognition } from '../../api/scanCard';
+import type { CardRecognition } from './scanner.api';
 
 export const languageLabels: Record<CardRecognition['language'], string> = {
   EN: 'Anglais',

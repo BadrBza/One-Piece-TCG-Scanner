@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { authenticate, type AuthMode, type AuthUser } from '../api/auth';
-import { errorMessage } from '../api/http';
+import { authenticate, type AuthMode, type AuthUser } from '../features/auth/auth.api';
+import { errorMessage } from '../lib/http';
 
 export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const [mode, setMode] = useState<AuthMode>('login');

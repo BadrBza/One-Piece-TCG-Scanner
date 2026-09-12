@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service.js';
-import type { AuthUser } from '../schemas/auth.schema.js';
+import type { AuthUser } from './auth.schema.js';
 
 type UserRow = AuthUser & { password_hash: string };
 

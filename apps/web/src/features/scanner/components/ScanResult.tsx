@@ -1,4 +1,4 @@
-import type { NumberConfirmationResult, RecognizedScanResult } from '../../../api/scanCard';
+import type { NumberConfirmationResult, RecognizedScanResult } from '../scanner.api';
 import { CardmarketPrices } from './CardmarketPrices';
 import { languageLabels, variantLabels } from '../labels';
 import { Loader2, ScanLine } from 'lucide-react';

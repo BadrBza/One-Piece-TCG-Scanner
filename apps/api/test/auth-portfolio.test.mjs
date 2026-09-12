@@ -14,7 +14,7 @@ import { DatabaseService } from '../dist/database/database.service.js';
 import { CardmarketProvider } from '../dist/pricing/providers/cardmarket.provider.js';
 import { RecognitionService } from '../dist/recognition/recognition.service.js';
 import { CardVariantsService } from '../dist/pricing/card-variants.service.js';
-import { DATABASE_SCHEMA } from '../dist/schemas/database.schema.js';
+import { DATABASE_SCHEMA } from '../dist/database/database.schema.js';
 import { PortfolioPriceUpdater } from '../dist/portfolio/portfolio-price-updater.service.js';
 
 const origin = 'http://localhost:5173';

@@ -1,37 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowDownUp, Layers, Plus } from 'lucide-react';
 
-import { getPortfolio, removePortfolioCard, type PortfolioCard } from '../api/portfolio';
-import { errorMessage } from '../api/http';
+import { usePortfolio } from '../features/portfolio/usePortfolio';
 import { PortfolioCardItem } from '../features/portfolio/components/PortfolioCardItem';
 
 const euros = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 type SortOrder = 'price-desc' | 'price-asc' | 'recent' | 'name';
 
 export function PortfolioPage() {
-  const [cards, setCards] = useState<PortfolioCard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { cards, loading, error, load, remove } = usePortfolio();
   const [sortOrder, setSortOrder] = useState<SortOrder>('price-desc');
-
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      setCards(await getPortfolio());
-    } catch (reason) {
-      setError(errorMessage(reason, 'La collection est indisponible.'));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { void load(); }, []);
-
-  async function remove(id: number) {
-    await removePortfolioCard(id);
-    setCards(current => current.filter(card => card.id !== id));
-  }
 
   const count = cards.reduce((sum, card) => sum + card.quantity, 0);
   const estimatedValue = cards.reduce((sum, card) => sum + (card.trendPrice ?? 0) * card.quantity, 0);

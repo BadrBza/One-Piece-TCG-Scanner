@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Get, Header, Post, Req, Res, Use
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthService } from './auth.service.js';
-import { CredentialsSchema } from '../schemas/auth.schema.js';
+import { CredentialsSchema } from './auth.schema.js';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard.js';
 
 @Controller('auth')
