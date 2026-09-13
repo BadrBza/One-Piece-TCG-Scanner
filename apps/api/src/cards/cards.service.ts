@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 
+import { measureScan, scanContext } from '../recognition/scan-metrics.js';
 import { CardmarketProvider } from '../pricing/providers/cardmarket.provider.js';
 import { RecognitionService } from '../recognition/recognition.service.js';
 import { CardVariantsService } from '../pricing/card-variants.service.js';
 import type { CardRecognition } from '../recognition/card-recognition.schema.js';
+import type { PriceResult } from '../pricing/price-result.js';
 import type { CardNumberConfirmation } from './scan-card.schema.js';
 
 @Injectable()
@@ -19,7 +21,7 @@ export class CardsService {
     const card: CardRecognition = { cardNumber, name: 'Recherche par numéro', language: 'UNKNOWN',
       rarity: null, variant: 'unknown', confidence: 0 };
     const prices = await this.getPrices(card, photo);
-    card.name = prices.cardmarket.products?.[0]?.name ?? cardNumber;
+    this.fillCard(card, prices.cardmarket);
     const rarity = prices.cardmarket.products?.find(product => product.rarity && product.rarity !== 'Non déterminée')?.rarity;
     card.rarity = rarity ?? null;
     return { card, prices };
@@ -29,12 +31,34 @@ export class CardsService {
     image: string,
     numberImage?: string,
   ) {
-    const recognition = await this.recognitionService.identify(image, numberImage);
-    if (isNumberConfirmation(recognition)) return recognition;
+    return scanContext(async () => {
+      const recognition = await this.recognitionService.identify(image, numberImage);
+      if (isNumberConfirmation(recognition)) return recognition;
+      let card = recognition;
+      let guide = await measureScan('catalog', () => this.cardmarket.getPrice(card));
+      if (guide.products?.length === 0 && this.recognitionService.canRetryNumber(card)) {
+        card = await this.recognitionService.readNumberOnly(image);
+        guide = await measureScan('catalog', () => this.cardmarket.getPrice(card));
+      }
+      if (guide.products?.length === 0 && this.recognitionService.optimized) {
+        throw new UnprocessableEntityException('Aucune fiche trouvée pour ce numéro. Vérifie-le ou saisis-le manuellement.');
+      }
+      const prices = { cardmarket: await this.cardVariants.variants(card, guide, image) };
+      if (this.recognitionService.optimized) this.fillCard(card, prices.cardmarket);
+      return { card, prices };
+    });
+  }
 
-    const card = recognition;
-    const prices = await this.getPrices(card, image);
-    return { card, prices };
+  private fillCard(card: CardRecognition, price: PriceResult) {
+    const selected = price.products?.find(product => product.id === price.selectedProductId);
+    const product = selected ?? price.products?.[0];
+    card.name = product?.name ?? card.cardNumber;
+    card.rarity = product?.rarity && product.rarity !== 'Non déterminée' ? product.rarity : null;
+    card.confidence = selected ? price.matchConfidence ?? 0 : 0;
+    const languages: Record<string, CardRecognition['language']> = { Anglais: 'EN', Japonais: 'JP', Français: 'FR', Chinois: 'CN', Coréen: 'KR' };
+    const variants: Record<string, CardRecognition['variant']> = { Standard: 'regular', Parallèle: 'parallel', 'Illustration alternative': 'alternate_art', Manga: 'manga', Promotionnelle: 'promo' };
+    card.language = selected ? languages[selected.languageLabel ?? ''] ?? 'UNKNOWN' : 'UNKNOWN';
+    card.variant = selected ? variants[selected.variantLabel ?? ''] ?? 'unknown' : 'unknown';
   }
 
   private async getPrices(card: CardRecognition, photo?: string) {

@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ConfigService } from '@nestjs/config';
 import { APICallError, generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from 'ai';
 
@@ -15,6 +16,7 @@ import { READ_CARD_NUMBER_PROMPT } from './prompts/read-card-number.prompt.js';
 import { CardRecognitionSchema, type CardRecognition } from './card-recognition.schema.js';
 import { CardNumberSchema, type CardNumberConfirmation } from '../cards/scan-card.schema.js';
 import { isCardNumber, normalizeCardNumber } from './card-number.js';
+import { measureScan, recordUsage, scanTelemetry } from './scan-metrics.js';
 import { unwrapProviderError, withGeminiModel } from './gemini-model.js';
 
 type ImageData = { data: Buffer; mediaType: string };
@@ -36,7 +38,41 @@ export class RecognitionService {
 
   constructor(private readonly config: ConfigService) {}
 
+  private readonly fallbackReads = new WeakSet<CardRecognition>();
+
+  canRetryNumber(card: CardRecognition) {
+    return this.optimized && !this.fallbackReads.has(card);
+  }
+
+  get optimized() { return this.config.get<string>('SCAN_OPTIMIZED') !== 'false'; }
+
+  async readNumberOnly(image: string): Promise<CardRecognition> {
+    return this.identifyNumber(image, undefined, true);
+  }
+
+  private async identifyNumber(image: string, numberImage?: string, fallbackOnly = false): Promise<CardRecognition> {
+    const photo = decodeImage(image, 7 * 1024 * 1024, 'Importe une photo JPG, PNG ou WebP de 7 Mo maximum.');
+    const crop = numberImage === undefined ? undefined : decodeImage(numberImage, 3 * 1024 * 1024, 'Le gros plan du numéro est invalide ou trop volumineux.');
+    if (!this.config.get<string>('GOOGLE_GENERATIVE_AI_API_KEY')?.trim()) {
+      throw new ServiceUnavailableException('La clé Gemini est absente. Configure GOOGLE_GENERATIVE_AI_API_KEY dans le fichier .env du serveur.');
+    }
+    let number: string;
+    let usedFallback = fallbackOnly;
+    try {
+      number = normalizeCardNumber(await this.readCardNumber(fallbackOnly ? photo : crop ?? photo, fallbackOnly ? 'fallback' : 'fast'));
+      if (!isCardNumber(number) && !usedFallback) {
+        usedFallback = true;
+        number = normalizeCardNumber(await this.readCardNumber(photo, 'fallback'));
+      }
+    } catch (error) { this.throwReadableError(error); }
+    if (!isCardNumber(number)) throw new UnprocessableEntityException('Le numéro de la carte est illisible. Reprends la photo ou saisis le numéro manuellement.');
+    const card: CardRecognition = { cardNumber: number, name: number, language: 'UNKNOWN', rarity: null, variant: 'unknown', confidence: 0 };
+    if (usedFallback) this.fallbackReads.add(card);
+    return card;
+  }
+
   async identify(image: string, numberImage?: string): Promise<CardRecognition | CardNumberConfirmation> {
+    if (this.optimized) return this.identifyNumber(image, numberImage);
     const photo = decodeImage(image, 7 * 1024 * 1024, 'Importe une photo JPG, PNG ou WebP de 7 Mo maximum.');
     const crop = numberImage === undefined
       ? undefined
@@ -81,8 +117,9 @@ export class RecognitionService {
   }
 
   private async askGemini(photo: ImageData, crop?: ImageData) {
-    const response = await withGeminiModel(this.config, model => generateText({
+    const response = await measureScan('identify', () => withGeminiModel(this.config, model => generateText({
       model,
+      telemetry: scanTelemetry('identify'),
       system: IDENTIFY_CARD_PROMPT,
       messages: [{
         role: 'user',
@@ -102,22 +139,38 @@ export class RecognitionService {
       maxOutputTokens: 8192,
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(120000),
-    }));
+    })));
+    recordUsage('identify', response.usage, response.response.modelId);
     return response.output;
   }
 
-  private async readCardNumber(image: ImageData) {
-    const response = await withGeminiModel(this.config, model => generateText({
+  private async readCardNumber(image: ImageData, mode: 'fast' | 'fallback' | 'legacy' = 'legacy') {
+    const abortSignal = AbortSignal.timeout(45000);
+    const stage = mode === 'legacy' ? 'number' : `number-${mode}`;
+    const reasoning = mode === 'fast' && this.config.get<string>('SCAN_NUMBER_REASONING') !== 'low' ? 'minimal' : 'low';
+    const run = (model: import('ai').LanguageModel) => generateText({
       model,
+      telemetry: scanTelemetry(stage),
       system: READ_CARD_NUMBER_PROMPT,
       messages: [{ role: 'user', content: [{ type: 'file', data: image.data, mediaType: image.mediaType }] }],
       output: Output.object({ schema: CardNumberSchema }),
-      reasoning: 'low',
+      reasoning,
       providerOptions: { google: { mediaResolution: 'MEDIA_RESOLUTION_HIGH' } },
       maxOutputTokens: 2048,
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(45000),
-    }));
+      abortSignal,
+    });
+    // Optimized reads have an explicit two-attempt budget. Do not stack the
+    // generic provider fallback on top of the full-photo fallback.
+    const response = await measureScan(stage, () => {
+      if (mode === 'legacy') return withGeminiModel(this.config, run);
+      const google = createGoogleGenerativeAI({ apiKey: this.config.get<string>('GOOGLE_GENERATIVE_AI_API_KEY')?.trim() });
+      const model = mode === 'fast'
+        ? this.config.get<string>('GEMINI_NUMBER_MODEL')?.trim() || 'gemini-3.5-flash-lite'
+        : this.config.get<string>('GEMINI_NUMBER_FALLBACK_MODEL')?.trim() || 'gemini-3.5-flash';
+      return run(google(model));
+    });
+    recordUsage(stage, response.usage, response.response.modelId);
     return response.output.cardNumber;
   }
 

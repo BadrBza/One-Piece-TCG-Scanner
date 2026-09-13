@@ -7,6 +7,8 @@ import type { PriceResult } from '../price-result.js';
 @Injectable()
 export class CardmarketProvider implements OnModuleInit {
   private cache?: { data: CardmarketData; expires: number };
+  private productsByNumber = new Map<string, NonNullable<PriceResult['products']>>();
+  private pricesById = new Map<number, number>();
   private pending?: Promise<CardmarketData>;
 
   onModuleInit() {
@@ -27,6 +29,17 @@ export class CardmarketProvider implements OnModuleInit {
         catalog: CardmarketCatalogSchema.parse(await responses[0].json()),
         guide: CardmarketPriceGuideSchema.parse(await responses[1].json()),
       };
+      const prices = new Map(data.guide.priceGuides.map(price => [price.idProduct, price]));
+      const productsByNumber = new Map<string, NonNullable<PriceResult['products']>>();
+      for (const product of data.catalog.products) {
+        const number = /\(([A-Z]+\d*-\d+)\)/.exec(product.name.toUpperCase())?.[1];
+        if (!number || !isCardNumber(number)) continue;
+        const list = productsByNumber.get(number) ?? [];
+        list.push({ id: product.idProduct, name: product.name, trendPrice: prices.get(product.idProduct)?.trend ?? undefined });
+        productsByNumber.set(number, list);
+      }
+      this.productsByNumber = productsByNumber;
+      this.pricesById = new Map(data.guide.priceGuides.filter(price => price.trend != null).map(price => [price.idProduct, price.trend!]));
       this.cache = { data, expires: Date.now() + 60 * 60 * 1000 };
       return data;
     })();
@@ -40,18 +53,8 @@ export class CardmarketProvider implements OnModuleInit {
       return { ...base, message: 'Saisis le numéro de la carte pour consulter Cardmarket.' };
     }
     try {
-      const { catalog, guide } = await this.load();
-      const prices = new Map(guide.priceGuides.map(price => [price.idProduct, price]));
-      const products = catalog.products
-        .filter(product => product.name.toUpperCase().includes('(' + number + ')'))
-        .map(product => {
-          const price = prices.get(product.idProduct);
-          return {
-            id: product.idProduct,
-            name: product.name,
-            trendPrice: price?.trend ?? undefined,
-          };
-        });
+      await this.load();
+      const products = (this.productsByNumber.get(number) ?? []).map(product => ({ ...product }));
       return { ...base, products,
         message: products.length
           ? 'Fiches correspondant au numéro. Vérifie l’édition et la langue sur Cardmarket : le catalogue ne permet pas de confirmer la variante photographiée. Prix du guide, sans frais de port.'
@@ -64,10 +67,10 @@ export class CardmarketProvider implements OnModuleInit {
 
   async getTrendPrices(productIds: number[]) {
     const { guide } = await this.load();
-    const wanted = new Set(productIds);
     const prices = new Map<number, number>();
-    for (const price of guide.priceGuides) {
-      if (wanted.has(price.idProduct) && price.trend != null) prices.set(price.idProduct, price.trend);
+    for (const id of productIds) {
+      const price = this.pricesById.get(id);
+      if (price !== undefined) prices.set(id, price);
     }
     return { prices, updatedAt: guide.createdAt };
   }

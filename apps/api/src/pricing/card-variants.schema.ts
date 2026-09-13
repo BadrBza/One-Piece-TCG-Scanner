@@ -14,6 +14,13 @@ export const VariantPhotoAnalysisSchema = z.object({
   items: z.array(VariantItemSchema),
 });
 
+export const CompactVariantSchema = z.object({
+  selectedId: z.string().nullable(),
+  confidence: z.number().min(0).max(1),
+  language: VariantItemSchema.shape.language,
+  variant: VariantItemSchema.shape.variant,
+});
+
 export const OptcgCardsSchema = z.array(z.object({
   rarity: z.enum(['C', 'UC', 'R', 'SR', 'SEC', 'L', 'P']),
   set_name: z.string().min(1),

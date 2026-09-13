@@ -6,7 +6,7 @@ import { CardsService } from '../dist/cards/cards.service.js';
 
 const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5V8AAAAASUVORK5CYII=';
 const card = { cardNumber: 'OP01-001', name: 'Roronoa Zoro', language: 'EN', rarity: 'L', variant: 'regular', confidence: 0.95 };
-const config = new ConfigService({ GOOGLE_GENERATIVE_AI_API_KEY: 'test-key', GEMINI_MODEL: 'gemini-3.5-flash' });
+const config = new ConfigService({ SCAN_OPTIMIZED: 'false', GOOGLE_GENERATIVE_AI_API_KEY: 'test-key', GEMINI_MODEL: 'gemini-3.5-flash' });
 const modelReply = (text, finishReason = 'STOP') => Response.json({ candidates: [{ content: { role: 'model', parts: [{ text }] }, finishReason }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 10, totalTokenCount: 20 } });
 const reply = value => modelReply(JSON.stringify(value));
 const isNumberReading = options => JSON.parse(options.body).systemInstruction.parts[0].text.includes('Read only the card number');
@@ -172,7 +172,7 @@ test('a quota error falls back to the configured model without weakening structu
     return reply(card);
   };
   try {
-    const proConfig = new ConfigService({ GOOGLE_GENERATIVE_AI_API_KEY: 'test-key', GEMINI_MODEL: 'gemini-3.1-pro-preview', GEMINI_FALLBACK_MODEL: 'gemini-3.5-flash-lite' });
+    const proConfig = new ConfigService({ SCAN_OPTIMIZED: 'false', GOOGLE_GENERATIVE_AI_API_KEY: 'test-key', GEMINI_MODEL: 'gemini-3.1-pro-preview', GEMINI_FALLBACK_MODEL: 'gemini-3.5-flash-lite' });
     assert.deepEqual(await new RecognitionService(proConfig).identify(image), card);
     assert.equal(models.at(-1), 'flash');
     assert.ok(models.includes('pro'));

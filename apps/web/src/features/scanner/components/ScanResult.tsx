@@ -52,7 +52,7 @@ export function ScanResult({ confirmation, error, isConfirming, isLoading, loadi
             <CardField label="Carte" value={result.card.name} />
             <CardField label="Numéro" value={result.card.cardNumber} />
             <CardField label="Langue" value={languageLabels[result.card.language]} />
-            <CardField label="Fiabilité" value={source === 'photo' ? `${Math.round(result.card.confidence * 100)}%` : 'Recherche manuelle'} />
+            <CardField label="Correspondance estimée" value={source === 'photo' ? result.card.confidence > 0 ? `${Math.round(result.card.confidence * 100)}%` : 'À confirmer' : 'Recherche manuelle'} />
             <CardField label="Rareté" value={result.card.rarity ?? 'Non déterminée'} />
             <CardField label="Variante estimée" value={variantLabels[result.card.variant]} />
           </dl>

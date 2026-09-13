@@ -82,15 +82,7 @@ export function useScanner() {
     setError(null);
     try {
       const lookup = await resolveCard(number, preview);
-      setResult({
-        ...lookup,
-        card: {
-          ...lookup.card,
-          language: confirmation.card.language,
-          variant: confirmation.card.variant,
-          confidence: confirmation.card.confidence,
-        },
-      });
+      setResult(lookup);
       setCardNumber(number);
       setConfirmation(null);
       setResultSource('photo');

@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 .vite/
+.cache/
 .idea/
 .pnpm-store/
 *.log
