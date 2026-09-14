@@ -3,11 +3,13 @@ import { LogOut } from 'lucide-react';
 type Props = {
   activePage: 'scanner' | 'portfolio';
   email: string;
+  nickname: string | null;
+  avatar: string | null;
   loggingOut: boolean;
   onLogout: () => void;
 };
 
-export function AppHeader({ activePage, email, loggingOut, onLogout }: Props) {
+export function AppHeader({ activePage, email, nickname, avatar, loggingOut, onLogout }: Props) {
   return (
     <header className="sticky top-0 z-20 border-b border-stone-300 bg-[#f3f1ec] py-3">
       <nav aria-label="Navigation principale" className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
@@ -23,7 +25,12 @@ export function AppHeader({ activePage, email, loggingOut, onLogout }: Props) {
         <div className="flex items-center gap-1 text-sm font-medium">
           <NavLink href="#scanner" active={activePage === 'scanner'}>Scanner</NavLink>
           <NavLink href="#portfolio" active={activePage === 'portfolio'}>Ma collection</NavLink>
-          <span className="ml-3 hidden max-w-40 truncate text-xs text-stone-500 lg:block" title={email}>{email}</span>
+          <div className="ml-2 flex items-center gap-2" title={nickname || email}>
+            <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#8f2430]/10 text-xs font-semibold text-[#8f2430]" aria-label={`Profil de ${nickname || email}`}>
+              {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : (nickname || email).slice(0, 2).toUpperCase()}
+            </span>
+            <span className="hidden max-w-32 truncate text-xs font-medium text-stone-600 lg:block">{nickname || email}</span>
+          </div>
           <button type="button" onClick={onLogout} disabled={loggingOut} aria-label="Se déconnecter" title="Se déconnecter"
             className="ml-1 flex min-h-11 min-w-11 items-center justify-center rounded-sm text-stone-500 hover:bg-stone-200/70 hover:text-stone-900 disabled:opacity-50">
             <LogOut className="size-4" aria-hidden="true" />

@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 
 import type { PortfolioCard } from '../portfolio.api';
 import { errorMessage } from '../../../lib/http';
+import { RemoveCardDialog } from './RemoveCardDialog';
 
 const euros = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 const dates = new Intl.DateTimeFormat('fr-BE', { dateStyle: 'medium' });
@@ -13,6 +14,7 @@ export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onR
   const [error, setError] = useState<string | null>(null);
 
   async function remove() {
+    if (removing) return;
     setRemoving(true);
     setError(null);
     try {
@@ -39,17 +41,9 @@ export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onR
         {card.priceUpdatedAt && <p className="mt-1 text-xs text-stone-500">Cote mise à jour le {dates.format(new Date(card.priceUpdatedAt))}</p>}
       </div>
       <div className="mt-auto border-t border-stone-200 pt-3 text-sm">
-        {confirming ? (
-          <div className="space-y-2">
-            <p>Retirer les {card.quantity} exemplaire{card.quantity > 1 ? 's' : ''} de cette variante ?</p>
-            <div className="flex gap-3">
-              <button disabled={removing} onClick={() => void remove()} className="min-h-10 font-semibold text-red-700 disabled:opacity-50">{removing ? 'Suppression…' : 'Retirer'}</button>
-              <button disabled={removing} onClick={() => setConfirming(false)} className="min-h-10 text-stone-600">Annuler</button>
-            </div>
-          </div>
-        ) : <button onClick={() => setConfirming(true)} className="inline-flex min-h-10 items-center gap-2 text-stone-500 hover:text-red-700"><Trash2 className="size-4" aria-hidden="true" /> Retirer de la collection</button>}
-        {error && <p role="alert" className="mt-2 text-red-700">{error}</p>}
+        <button onClick={() => { setError(null); setConfirming(true); }} className="inline-flex min-h-10 items-center gap-2 rounded-md text-stone-500 hover:text-red-700"><Trash2 className="size-4" aria-hidden="true" /> Retirer de la collection</button>
       </div>
+      {confirming && <RemoveCardDialog card={card} removing={removing} error={error} onCancel={() => setConfirming(false)} onConfirm={() => void remove()} />}
     </article>
   );
 }

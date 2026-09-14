@@ -6,7 +6,6 @@ const VariantItemSchema = z.object({
   variant: z.enum(['Standard', 'Parallèle', 'Illustration alternative', 'Manga', 'Affiche Wanted', 'Promotionnelle', 'Non déterminée']),
 });
 
-export const VariantMetadataSchema = z.object({ items: z.array(VariantItemSchema) });
 
 export const VariantPhotoAnalysisSchema = z.object({
   selectedId: z.string(),
@@ -26,4 +25,4 @@ export const OptcgCardsSchema = z.array(z.object({
   set_name: z.string().min(1),
 }));
 
-export type VariantMetadata = z.infer<typeof VariantMetadataSchema>['items'];
+export type VariantMetadata = Array<z.infer<typeof VariantItemSchema>>;

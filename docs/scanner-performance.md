@@ -36,7 +36,11 @@ automatique, même si une autre semble correspondre.
 L'extension et la rareté sont récupérées en parallèle ; leur absence ne retarde pas
 le résultat. Les informations inconnues restent inconnues. Les images de référence,
 miniatures, métadonnées et le catalogue Cardmarket sont rechargés à chaque scan.
-Une recherche manuelle peut compléter les descriptions.
+La recherche manuelle appelle uniquement Cardmarket : elle renvoie les fiches,
+leurs prix et les URL de leurs images sans Gemini, OPTCG ni téléchargement
+d’images côté serveur. Le navigateur charge les images, et les informations
+absentes du catalogue sont masquées. Le chargement du catalogue et du guide
+des prix reste inchangé.
 
 ## Mesures et benchmark
 

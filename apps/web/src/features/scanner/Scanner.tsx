@@ -1,4 +1,4 @@
-import { Camera, Keyboard } from 'lucide-react';
+import { ArrowDown, Camera, Keyboard, Loader2, ScanLine } from 'lucide-react';
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import { useScanner } from './useScanner';
@@ -15,52 +15,74 @@ export function Scanner() {
   const resultPanel = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if ((result || confirmation) && window.innerWidth < 1024) {
-      resultPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [result, confirmation]);
+    if (result) resultPanel.current?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      block: 'start',
+    });
+  }, [result]);
 
   return (
-    <section className="space-y-5">
-      <div className="flex flex-col gap-5 border-b border-stone-300 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-950">Scanner une carte</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-600">Importe une photo nette pour identifier la carte, sa variante et sa cote Cardmarket.</p>
-        </div>
-        <div className="inline-flex border-b border-stone-300" role="tablist" aria-label="Méthode de recherche">
-          <ModeButton active={mode === 'photo'} disabled={busy} icon={<Camera className="size-4" />} onClick={() => selectMode('photo')}>Photo</ModeButton>
-          <ModeButton active={mode === 'manual'} disabled={busy} icon={<Keyboard className="size-4" />} onClick={() => selectMode('manual')}>Numéro</ModeButton>
-        </div>
-      </div>
+    <section className="mx-auto max-w-4xl space-y-8 pb-8 sm:space-y-10">
+      <header className="mx-auto max-w-xl text-center">
+        <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#8f2430]/15 bg-[#8f2430]/5 px-3 py-1 text-xs font-semibold text-[#8f2430]">
+          <ScanLine className="size-3.5" aria-hidden="true" /> HAKISCAN · ONE PIECE
+        </span>
+        <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">Une carte. Toutes ses possibilités.</h1>
+      </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.15fr)]">
-        {mode === 'photo' ? (
-          <PhotoPicker busy={busy} isImporting={isImporting} isScanning={isScanning}
-            onChange={importPhoto} onScan={() => void recognizeCard()} preview={preview} />
-        ) : (
-          <div className="rounded-md border border-stone-300 bg-[#fffefa] p-5 sm:p-7">
-            <ManualLookup cardNumber={cardNumber} disabled={busy} isLoading={isLookingUp}
-              onChange={setCardNumber} onSubmit={() => void findCard()} />
+      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-[#fffefa] shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-stone-200/80 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div>
+            <h2 className="font-semibold text-stone-900">Trouver ma carte</h2>
+            <p className="mt-1 text-xs text-stone-500">Choisis ta méthode de recherche.</p>
           </div>
-        )}
-
-        <aside ref={resultPanel} className="scroll-mt-24 rounded-md border border-stone-300 bg-[#fffefa] p-5 sm:p-6">
-          <ScanResult confirmation={confirmation} error={error} isConfirming={isLookingUp}
-            isLoading={isScanning || isLookingUp} loadingLabel={isScanning ? 'Analyse de la photo et recherche de la cote…' : 'Recherche de la carte…'}
-            onConfirm={number => void confirmCardNumber(number)} result={result} source={resultSource} />
-        </aside>
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1" role="group" aria-label="Méthode de recherche">
+            <ModeButton active={mode === 'photo'} disabled={busy} icon={<Camera className="size-4" aria-hidden="true" />} onClick={() => selectMode('photo')}>Photo</ModeButton>
+            <ModeButton active={mode === 'manual'} disabled={busy} icon={<Keyboard className="size-4" aria-hidden="true" />} onClick={() => selectMode('manual')}>Référence</ModeButton>
+          </div>
+        </div>
+        <div aria-busy={busy} className="p-5 sm:p-8">
+          {mode === 'photo' ? (
+            <PhotoPicker busy={busy} isImporting={isImporting} isScanning={isScanning}
+              onChange={importPhoto} onScan={() => void recognizeCard()} preview={preview} />
+          ) : (
+            <div className="mx-auto max-w-xl py-4 sm:py-8">
+              <ManualLookup cardNumber={cardNumber} disabled={busy} isLoading={isLookingUp}
+                onChange={setCardNumber} onSubmit={() => void findCard()} />
+            </div>
+          )}
+          {error && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
+          {confirmation && <div role="status" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-5">
+            <h3 className="font-semibold text-amber-950">Confirme le numéro de ta carte</h3>
+            <p className="mt-1 text-sm text-amber-800">Choisis la référence visible sur ta photo pour continuer.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {confirmation.numberCandidates.map(number => <button key={number} type="button" disabled={busy}
+                onClick={() => void confirmCardNumber(number)}
+                className="min-h-11 rounded-lg border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 disabled:opacity-50">{number}</button>)}
+            </div>
+            {isLookingUp && <p className="mt-3 flex items-center gap-2 text-sm text-amber-900"><Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> Recherche en cours…</p>}
+          </div>}
+        </div>
       </div>
+
+      {result && <section ref={resultPanel} aria-labelledby="scan-result-title" className="scroll-mt-24">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="flex size-9 items-center justify-center rounded-full bg-[#8f2430]/10 text-[#8f2430]"><ArrowDown className="size-4" aria-hidden="true" /></span>
+          <div>
+            <h2 id="scan-result-title" className="text-xl font-semibold tracking-tight text-stone-950">Résultat de la recherche</h2>
+            <p className="mt-0.5 text-xs text-stone-500">{resultSource === 'photo' ? 'Les correspondances avec ta photo.' : 'Les fiches Cardmarket pour ta référence.'}</p>
+          </div>
+        </div>
+        <ScanResult result={result} source={resultSource} />
+      </section>}
+      <p aria-live="polite" className="sr-only">{result ? 'Résultat de la recherche disponible.' : busy ? 'Recherche en cours.' : ''}</p>
     </section>
   );
 }
 
 function ModeButton({ active, children, disabled, icon, onClick }: { active: boolean; children: string; disabled: boolean; icon: ReactNode; onClick: () => void }) {
-  return (
-    <button type="button" role="tab" aria-selected={active} disabled={disabled} onClick={onClick}
-      className={active
-        ? 'inline-flex min-h-10 items-center gap-2 border-b-2 border-[#8f2430] px-4 text-sm font-semibold text-stone-950 disabled:opacity-60'
-        : 'inline-flex min-h-10 items-center gap-2 border-b-2 border-transparent px-4 text-sm font-semibold text-stone-500 hover:text-stone-950 disabled:opacity-60'}>
-      {icon}{children}
-    </button>
-  );
+  return <button type="button" aria-pressed={active} disabled={disabled} onClick={onClick}
+    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-50 ${active ? 'bg-white text-[#8f2430] shadow-sm' : 'text-stone-500 hover:text-stone-900'}`}>
+    {icon}{children}
+  </button>;
 }

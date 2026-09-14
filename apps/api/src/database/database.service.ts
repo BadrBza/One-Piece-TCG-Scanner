@@ -17,10 +17,29 @@ export class DatabaseService implements OnModuleDestroy {
     this.connection = new DatabaseSync(databasePath);
     this.connection.exec('PRAGMA foreign_keys = ON');
     this.migrate();
+    this.migrateProfile();
   }
 
   onModuleDestroy() {
     this.connection.close();
+  }
+
+  private migrateProfile() {
+    const { user_version: version } = this.connection.prepare('PRAGMA user_version').get() as { user_version: number };
+    if (version >= 3) return;
+    this.connection.exec('BEGIN IMMEDIATE');
+    try {
+      this.connection.exec(`
+        ALTER TABLE users ADD COLUMN nickname TEXT;
+        ALTER TABLE users ADD COLUMN avatar TEXT;
+        PRAGMA user_version = 3;
+        COMMIT;
+      `);
+    } catch (error) {
+      this.connection.exec('ROLLBACK');
+      this.connection.close();
+      throw error;
+    }
   }
 
   private migrate() {

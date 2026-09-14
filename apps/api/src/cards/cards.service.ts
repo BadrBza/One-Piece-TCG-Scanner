@@ -17,10 +17,24 @@ export class CardsService {
     private readonly cardVariants: CardVariantsService,
   ) {}
 
-  async lookup(cardNumber: string, photo?: string) {
-    const card: CardRecognition = { cardNumber, name: 'Recherche par numéro', language: 'UNKNOWN',
+  async lookup(cardNumber: string) {
+    const card: CardRecognition = { cardNumber, name: cardNumber, language: 'UNKNOWN',
       rarity: null, variant: 'unknown', confidence: 0 };
-    const prices = await this.getPrices(card, photo);
+    const guide = await this.cardmarket.getPrice(card);
+    const products = guide.products?.map((product, index) => ({
+      ...product,
+      version: index + 1,
+      imageUrl: `https://cardmarketapi.com/cards/${product.id}/image`,
+    }));
+    card.name = products?.[0]?.name ?? cardNumber;
+    return { card, prices: { cardmarket: { ...guide, products } } };
+  }
+
+  async resolve(cardNumber: string, photo: string) {
+    const card: CardRecognition = { cardNumber, name: cardNumber, language: 'UNKNOWN',
+      rarity: null, variant: 'unknown', confidence: 0 };
+    const guide = await this.cardmarket.getPrice(card);
+    const prices = { cardmarket: await this.cardVariants.variants(card, guide, photo) };
     this.fillCard(card, prices.cardmarket);
     const rarity = prices.cardmarket.products?.find(product => product.rarity && product.rarity !== 'Non déterminée')?.rarity;
     card.rarity = rarity ?? null;
@@ -61,10 +75,7 @@ export class CardsService {
     card.variant = selected ? variants[selected.variantLabel ?? ''] ?? 'unknown' : 'unknown';
   }
 
-  private async getPrices(card: CardRecognition, photo?: string) {
-    const prices = await this.cardmarket.getPrice(card);
-    return { cardmarket: await this.cardVariants.variants(card, prices, photo) };
-  }
+
 }
 
 function isNumberConfirmation(result: CardRecognition | CardNumberConfirmation): result is CardNumberConfirmation {

@@ -58,6 +58,7 @@ export function useScanner() {
     if (!preview || busy) return;
 
     setIsScanning(true);
+    setConfirmation(null);
     setError(null);
     setResult(null);
     try {
@@ -101,7 +102,9 @@ export function useScanner() {
     setResult(null);
     setConfirmation(null);
     try {
-      setResult(await lookupCard(cardNumber));
+      const lookup = await lookupCard(cardNumber);
+      setResult(lookup);
+      setCardNumber(lookup.card.cardNumber);
       setResultSource('manual');
     } catch (reason) {
       setError(errorMessage(reason, 'Recherche impossible.'));

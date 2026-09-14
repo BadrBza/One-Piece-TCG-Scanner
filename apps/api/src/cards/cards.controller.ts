@@ -23,7 +23,8 @@ export class CardsController {
 
   @Get('lookup')
   lookup(@Query('number') number: string) {
-    const normalized = normalizeCardNumber(number ?? '');
+    // Accept the common zero/O typo only in the OP prefix of manual input.
+    const normalized = normalizeCardNumber(number ?? '').replace(/^0P(?=\d{2}-\d{3}$)/, 'OP');
     if (!isCardNumber(normalized)) {
       throw new BadRequestException('Numéro invalide. Exemple : OP01-001.');
     }
@@ -43,6 +44,6 @@ export class CardsController {
   resolve(@Body() body: unknown) {
     const request = ResolveCardSchema.safeParse(body);
     if (!request.success) throw new BadRequestException('Le numéro ou la photo est invalide.');
-    return this.cardsService.lookup(request.data.cardNumber, request.data.image);
+    return this.cardsService.resolve(request.data.cardNumber, request.data.image);
   }
 }

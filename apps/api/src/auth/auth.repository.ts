@@ -11,14 +11,14 @@ export class AuthRepository {
 
   findUserByEmail(email: string): UserRow | undefined {
     return this.database.connection.prepare(
-      'SELECT id, email, password_hash FROM users WHERE email = ?',
+      'SELECT id, email, nickname, avatar, password_hash FROM users WHERE email = ?',
     ).get(email) as UserRow | undefined;
   }
 
-  createUser(email: string, passwordHash: string): AuthUser | undefined {
+  createUser(email: string, passwordHash: string, nickname: string, avatar: string | null): AuthUser | undefined {
     return this.database.connection.prepare(
-      'INSERT INTO users (email, password_hash) VALUES (?, ?) ON CONFLICT(email) DO NOTHING RETURNING id, email',
-    ).get(email, passwordHash) as AuthUser | undefined;
+      'INSERT INTO users (email, password_hash, nickname, avatar) VALUES (?, ?, ?, ?) ON CONFLICT(email) DO NOTHING RETURNING id, email, nickname, avatar',
+    ).get(email, passwordHash, nickname, avatar) as AuthUser | undefined;
   }
 
   createSession(tokenHash: string, userId: number, expiresAt: string) {
@@ -30,7 +30,7 @@ export class AuthRepository {
 
   findUserBySession(tokenHash: string): AuthUser | undefined {
     return this.database.connection.prepare(`
-      SELECT users.id, users.email
+      SELECT users.id, users.email, users.nickname, users.avatar
       FROM sessions
       JOIN users ON users.id = sessions.user_id
       WHERE sessions.token_hash = ? AND sessions.expires_at > ?

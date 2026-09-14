@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Get, Header, Post, Req, Res, Use
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthService } from './auth.service.js';
-import { CredentialsSchema } from './auth.schema.js';
+import { CredentialsSchema, RegistrationSchema } from './auth.schema.js';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard.js';
 
 @Controller('auth')
@@ -13,7 +13,9 @@ export class AuthController {
   @UseGuards(AuthRateLimitGuard)
   @Header('Cache-Control', 'no-store')
   async register(@Body() body: unknown, @Res({ passthrough: true }) reply: FastifyReply) {
-    const credentials = parseCredentials(body);
+    const parsed = RegistrationSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException('Vérifie ton e-mail, ton mot de passe (8 caractères minimum), ton pseudo (3 à 30 caractères) et ta photo (2 Mo maximum).');
+    const credentials = parsed.data;
     const session = await this.auth.register(credentials);
     reply.header('Set-Cookie', sessionCookie(session.token, session.expiresAt));
     return session.user;

@@ -57,7 +57,7 @@ export function App() {
   return (
     <main className="min-h-screen bg-[#f3f1ec] text-[#24211f]">
       <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 pb-12 sm:px-6 lg:px-8">
-        <AppHeader activePage={page === 'portfolio' ? 'portfolio' : 'scanner'} email={user.email} loggingOut={loggingOut} onLogout={() => void onLogout()} />
+        <AppHeader activePage={page === 'portfolio' ? 'portfolio' : 'scanner'} email={user.email} nickname={user.nickname} avatar={user.avatar} loggingOut={loggingOut} onLogout={() => void onLogout()} />
         {logoutError && <p role="alert" className="text-sm text-red-700">{logoutError}</p>}
         {page === 'portfolio' ? <PortfolioPage key={user.id} /> : <ScannerPage key={user.id} />}
       </section>

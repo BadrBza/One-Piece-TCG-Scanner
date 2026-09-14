@@ -1,9 +1,10 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
+import sharp from 'sharp';
 import { AuthRepository } from './auth.repository.js';
-import type { AuthUser, Credentials } from './auth.schema.js';
+import type { AuthUser, Credentials, Registration } from './auth.schema.js';
 
 const scryptAsync = promisify(scrypt);
 const SESSION_DAYS = 30;
@@ -12,11 +13,12 @@ const SESSION_DAYS = 30;
 export class AuthService {
   constructor(private readonly users: AuthRepository) {}
 
-  async register(credentials: Credentials) {
+  async register(credentials: Registration) {
     if (this.users.findUserByEmail(credentials.email)) {
       throw new ConflictException('Un compte existe déjà avec cette adresse e-mail.');
     }
-    const user = this.users.createUser(credentials.email, await hashPassword(credentials.password));
+    const avatar = credentials.avatar ? await prepareAvatar(credentials.avatar) : null;
+    const user = this.users.createUser(credentials.email, await hashPassword(credentials.password), credentials.nickname, avatar);
     if (!user) throw new ConflictException('Un compte existe déjà avec cette adresse e-mail.');
     return { user, ...this.createSession(user.id) };
   }
@@ -26,7 +28,7 @@ export class AuthService {
     if (!stored || !await passwordMatches(credentials.password, stored.password_hash)) {
       throw new UnauthorizedException('Adresse e-mail ou mot de passe incorrect.');
     }
-    return { user: { id: stored.id, email: stored.email }, ...this.createSession(stored.id) };
+    return { user: { id: stored.id, email: stored.email, nickname: stored.nickname, avatar: stored.avatar }, ...this.createSession(stored.id) };
   }
 
   currentUser(cookieHeader?: string): AuthUser | undefined {
@@ -67,4 +69,18 @@ function tokenHash(token: string) {
 
 function readCookie(header: string | undefined, name: string) {
   return header?.split(';').map(value => value.trim()).find(value => value.startsWith(name + '='))?.slice(name.length + 1);
+}
+
+async function prepareAvatar(source: string): Promise<string> {
+  try {
+    const data = Buffer.from(source.split(',')[1], 'base64');
+    if (!data.length || data.length > 2 * 1024 * 1024) throw new Error('Invalid image size');
+    const image = sharp(data, { limitInputPixels: 25_000_000 });
+    const metadata = await image.metadata();
+    if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1) throw new Error('Unsupported image');
+    const avatar = await image.rotate().resize(256, 256, { fit: 'cover' }).webp({ quality: 80 }).toBuffer();
+    return `data:image/webp;base64,${avatar.toString('base64')}`;
+  } catch {
+    throw new BadRequestException('Choisis une photo JPG, PNG ou WebP valide de 2 Mo maximum (25 mégapixels maximum).');
+  }
 }

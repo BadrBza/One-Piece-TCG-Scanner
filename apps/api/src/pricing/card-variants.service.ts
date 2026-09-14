@@ -6,13 +6,12 @@ import { ConfigService } from '@nestjs/config';
 import { generateText, Output, type LanguageModel } from 'ai';
 import type { z } from 'zod';
 
-import { VARIANT_METADATA_PROMPT } from './prompts/variant-metadata.prompt.js';
 import { MATCH_COMPACT_VARIANT_PROMPT } from './prompts/match-compact-variant.prompt.js';
 import { MATCH_CARD_VARIANT_PROMPT } from './prompts/match-card-variant.prompt.js';
 import { withGeminiModel } from '../recognition/gemini-model.js';
 import { parseDataUrl } from '../recognition/decode-image.js';
 import type { CardRecognition } from '../recognition/card-recognition.schema.js';
-import { CompactVariantSchema, OptcgCardsSchema, VariantMetadataSchema, VariantPhotoAnalysisSchema, type VariantMetadata } from './card-variants.schema.js';
+import { CompactVariantSchema, OptcgCardsSchema, VariantPhotoAnalysisSchema, type VariantMetadata } from './card-variants.schema.js';
 import type { PriceResult } from './price-result.js';
 
 type Product = NonNullable<PriceResult['products']>[number];
@@ -35,16 +34,14 @@ export class CardVariantsService {
     return Number.isFinite(value) && value >= 0 && value <= 1 ? value : 0.95;
   }
 
-  async variants(card: CardRecognition, guide: PriceResult, photo?: string): Promise<PriceResult> {
+  async variants(card: CardRecognition, guide: PriceResult, photo: string): Promise<PriceResult> {
     const variants = this.addVariantDetails(guide.products ?? []);
     if (!variants.length) return guide;
 
     const infoPromise = this.getCardInfo(card.cardNumber);
-    const analysis = await (photo
-      ? this.analyzePhoto(photo, variants)
-      : this.generateMetadata(variants).then<Analysis>(metadata => ({ metadata })));
+    const analysis = await this.analyzePhoto(photo, variants);
     // Optimized photo scans must not wait on optional OPTCG metadata.
-    const cardInfo = this.optimized && photo
+    const cardInfo = this.optimized
       ? await Promise.race([infoPromise, Promise.resolve(undefined)])
       : await infoPromise;
 
@@ -102,25 +99,6 @@ export class CardVariantsService {
     const response = options.stage ? await measureScan(options.stage, run) : await run();
     if (options.stage) recordUsage(options.stage, response.usage, response.response.modelId);
     return response.output as z.infer<T>;
-  }
-
-  private async generateMetadata(products: VariantProduct[]): Promise<VariantMetadata> {
-    try {
-      const references = await this.references(products);
-      if (!references.length) return [];
-      const output = await this.variantGenerate({
-        system: VARIANT_METADATA_PROMPT,
-        content: references.flatMap(({ product, data, mediaType }) => [
-          { type: 'text', text: `Reference ID: ${product.id}` },
-          { type: 'file', data, mediaType },
-        ]),
-        schema: VariantMetadataSchema,
-        timeout: 30_000,
-      });
-      return output.items;
-    } catch {
-      return [];
-    }
   }
 
   private async analyzePhoto(photo: string, products: VariantProduct[]): Promise<Analysis> {
