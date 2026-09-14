@@ -31,7 +31,7 @@ export function PortfolioPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Ma collection</h1>
         </div>
-        <a href="#scanner" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27]">
+        <a href="#scanner" className="inline-flex min-h-11 w-full items-center justify-center sm:w-auto gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27]">
           <Plus className="size-4" aria-hidden="true" /> Ajouter une carte
         </a>
       </div>
@@ -56,11 +56,11 @@ export function PortfolioPage() {
             </div>
           </div>
           <div className="flex justify-end">
-            <label className="flex min-h-11 items-center gap-2 rounded-md border border-stone-300 bg-[#fffefa] px-3 text-sm font-medium text-stone-700">
-              <ArrowDownUp className="size-4 text-stone-400" aria-hidden="true" />
+            <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-md sm:w-auto border border-stone-300 bg-[#fffefa] px-3 text-sm font-medium text-stone-700">
+              <ArrowDownUp className="size-4 shrink-0 text-stone-400" aria-hidden="true" />
               <span className="sr-only">Trier les cartes</span>
               <select aria-label="Trier les cartes" value={sortOrder} onChange={event => setSortOrder(event.target.value as SortOrder)}
-                className="cursor-pointer bg-transparent pr-1 outline-none">
+                className="min-h-11 w-full min-w-0 cursor-pointer bg-transparent text-base sm:text-sm pr-1 outline-none">
                 <option value="price-desc">Cote : plus élevée</option>
                 <option value="price-asc">Cote : plus basse</option>
                 <option value="recent">Ajout le plus récent</option>

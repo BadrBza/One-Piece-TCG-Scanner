@@ -22,12 +22,12 @@ export function Scanner() {
   }, [result]);
 
   return (
-    <section className="mx-auto max-w-4xl space-y-8 pb-8 sm:space-y-10">
+    <section className="mx-auto w-full min-w-0 max-w-4xl space-y-6 pb-4 sm:space-y-10">
       <header className="mx-auto max-w-xl text-center">
         <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#8f2430]/15 bg-[#8f2430]/5 px-3 py-1 text-xs font-semibold text-[#8f2430]">
           <ScanLine className="size-3.5" aria-hidden="true" /> HAKISCAN · ONE PIECE
         </span>
-        <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">Une carte. Toutes ses possibilités.</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-stone-950 sm:text-4xl">Une carte. Toutes ses possibilités.</h1>
       </header>
 
       <div className="overflow-hidden rounded-2xl border border-stone-200 bg-[#fffefa] shadow-sm">
@@ -41,7 +41,7 @@ export function Scanner() {
             <ModeButton active={mode === 'manual'} disabled={busy} icon={<Keyboard className="size-4" aria-hidden="true" />} onClick={() => selectMode('manual')}>Référence</ModeButton>
           </div>
         </div>
-        <div aria-busy={busy} className="p-5 sm:p-8">
+        <div aria-busy={busy} className="p-4 sm:p-8">
           {mode === 'photo' ? (
             <PhotoPicker busy={busy} isImporting={isImporting} isScanning={isScanning}
               onChange={importPhoto} onScan={() => void recognizeCard()} preview={preview} />
@@ -65,7 +65,7 @@ export function Scanner() {
         </div>
       </div>
 
-      {result && <section ref={resultPanel} aria-labelledby="scan-result-title" className="scroll-mt-24">
+      {result && <section ref={resultPanel} aria-labelledby="scan-result-title" className="scroll-mt-40 md:scroll-mt-24">
         <div className="mb-5 flex items-center gap-3">
           <span className="flex size-9 items-center justify-center rounded-full bg-[#8f2430]/10 text-[#8f2430]"><ArrowDown className="size-4" aria-hidden="true" /></span>
           <div>
@@ -82,7 +82,7 @@ export function Scanner() {
 
 function ModeButton({ active, children, disabled, icon, onClick }: { active: boolean; children: string; disabled: boolean; icon: ReactNode; onClick: () => void }) {
   return <button type="button" aria-pressed={active} disabled={disabled} onClick={onClick}
-    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-50 ${active ? 'bg-white text-[#8f2430] shadow-sm' : 'text-stone-500 hover:text-stone-900'}`}>
+    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm sm:px-5 font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-50 ${active ? 'bg-white text-[#8f2430] shadow-sm' : 'text-stone-500 hover:text-stone-900'}`}>
     {icon}{children}
   </button>;
 }

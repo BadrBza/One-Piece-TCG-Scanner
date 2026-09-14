@@ -21,7 +21,7 @@ export function CardmarketPrices({ price, card, manual = false }: { price: Price
   useEffect(() => setSelectedId(price.selectedProductId ?? null), [price]);
 
   return (
-    <section className="rounded-2xl border border-stone-200 bg-white p-5 text-stone-900 sm:p-6" aria-label="Variantes Cardmarket">
+    <section className="rounded-2xl border border-stone-200 min-w-0 bg-white p-4 text-stone-900 sm:p-6" aria-label="Variantes Cardmarket">
       {selected ? (
         <SelectedVariant key={selected.id} cardNumber={card.cardNumber} product={selected} manual={manual} onBack={() => setSelectedId(null)} />
       ) : (
@@ -36,18 +36,19 @@ function SelectedVariant({ cardNumber, product, onBack, manual }: { cardNumber: 
     <>
       <p className="text-sm text-stone-500">Estimation Cardmarket</p>
       <h3 className="mt-1 text-xl font-semibold">Cote de ta carte</h3>
-      <div className="mt-3 space-y-3">
-        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="mx-auto max-h-72 rounded-sm border border-stone-200 bg-stone-50 object-contain p-2" />}
+      <div className={`mt-4 grid min-w-0 gap-5 ${product.imageUrl ? 'lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-8' : ''}`}>
+        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="mx-auto self-start w-full max-w-64 max-h-80 lg:max-h-[480px] lg:max-w-sm rounded-sm border border-stone-200 bg-stone-50 object-contain p-2" />}
+        <div className="min-w-0 space-y-3 [overflow-wrap:anywhere]">
         <p className="font-medium">{title(product)}</p>
         <p className="text-sm text-stone-700">{product.name}</p>
         {product.expansion && <p className="text-sm text-stone-500">Série : {product.expansion}</p>}
-        {(!manual || product.languageLabel || product.rarity || product.variantLabel) && <div className="grid grid-cols-2 gap-2 text-sm text-stone-700">
+        {(!manual || product.languageLabel || product.rarity || product.variantLabel) && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm text-stone-700">
           {(!manual || product.languageLabel) && <p>Langue : <strong>{product.languageLabel ?? 'Non déterminée'}</strong></p>}
           {(!manual || product.rarity) && <p>Rareté : <strong>{product.rarity ?? 'Non déterminée'}</strong></p>}
-          {(!manual || product.variantLabel) && <p className="col-span-2">Illustration : <strong>{product.variantLabel ?? 'Non déterminée'}</strong></p>}
+          {(!manual || product.variantLabel) && <p className="sm:col-span-2">Illustration : <strong>{product.variantLabel ?? 'Non déterminée'}</strong></p>}
         </div>}
         <div className="border-l-2 border-[#8f2430] bg-[#faf5f3] p-4">
-          <p className="text-3xl font-semibold text-stone-950">{product.trendPrice === undefined ? 'Cote indisponible' : euros.format(product.trendPrice)}</p>
+          <p className="break-words text-2xl font-semibold sm:text-3xl text-stone-950">{product.trendPrice === undefined ? 'Cote indisponible' : euros.format(product.trendPrice)}</p>
         </div>
         <p className="text-xs leading-relaxed text-stone-500">Tendance Cardmarket de cette fiche, sans filtre de langue, d’état ou de frais de port.</p>
         <AddToPortfolio card={{
@@ -56,9 +57,10 @@ function SelectedVariant({ cardNumber, product, onBack, manual }: { cardNumber: 
           rarity: product.rarity, variant: product.variantLabel,
           expansion: product.expansion, trendPrice: product.trendPrice,
         }} />
-        <div className="flex flex-wrap gap-3">
-          <a href={`https://www.cardmarket.com/en/OnePiece/Products?idProduct=${product.id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white transition hover:bg-[#761d27]">Voir sur Cardmarket <ExternalLink className="size-4" aria-hidden="true" /></a>
-          <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-stone-300 px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"><ArrowLeft className="size-4" aria-hidden="true" /> Changer de variante</button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <a href={`https://www.cardmarket.com/en/OnePiece/Products?idProduct=${product.id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white transition hover:bg-[#761d27]">Voir sur Cardmarket <ExternalLink className="size-4" aria-hidden="true" /></a>
+          <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-stone-300 px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"><ArrowLeft className="size-4" aria-hidden="true" /> Changer de variante</button>
+        </div>
         </div>
       </div>
     </>
@@ -94,7 +96,7 @@ function VariantChoice({ product, onSelect, manual }: { product: Product; onSele
     <button
       type="button"
       onClick={() => onSelect(product.id)}
-      className="group flex flex-col gap-2 rounded-xl border border-stone-200 bg-stone-50/40 p-4 transition hover:shadow-md text-left transition hover:border-[#8f2430] focus-visible:outline-2 focus-visible:outline-[#8f2430]"
+      className="group flex min-w-0 flex-col gap-2 [overflow-wrap:anywhere] rounded-xl border border-stone-200 bg-stone-50/40 p-4 text-left transition hover:shadow-md hover:border-[#8f2430] focus-visible:outline-2 focus-visible:outline-[#8f2430]"
     >
       {product.imageUrl
         ? <img src={product.imageUrl} alt={title(product)} loading="lazy" className="h-72 w-full rounded-sm bg-stone-50 object-contain p-1.5" />

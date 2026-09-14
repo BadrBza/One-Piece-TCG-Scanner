@@ -35,9 +35,9 @@ export function RemoveCardDialog({ card, removing, error, onCancel, onConfirm }:
     <dialog ref={dialogRef} aria-labelledby={titleId} aria-describedby={descriptionId} aria-busy={removing}
       onCancel={event => { event.preventDefault(); if (!removing) onCancel(); }}
       className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl border border-stone-200 bg-[#fffefa] p-0 text-stone-800 shadow-2xl backdrop:bg-stone-950/50 backdrop:backdrop-blur-sm">
-      <div className="p-6 sm:p-7">
+      <div className="p-4 sm:p-7">
         <div className="flex items-center justify-between gap-3">
-          <h2 id={titleId} className="text-xl font-semibold tracking-tight">Retirer cette carte ?</h2>
+          <h2 id={titleId} className="text-lg font-semibold tracking-tight sm:text-xl">Retirer cette carte ?</h2>
           <button type="button" onClick={onCancel} disabled={removing} aria-label="Fermer"
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-40">
             <X className="size-5" aria-hidden="true" />

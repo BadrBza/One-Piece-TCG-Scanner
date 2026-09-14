@@ -4,7 +4,7 @@ import { languageLabels, variantLabels } from '../labels';
 
 export function ScanResult({ result, source }: { result: RecognizedScanResult; source: 'photo' | 'manual' }) {
   return <div className="space-y-5">
-          <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-2xl border border-stone-200 bg-[#fffefa] p-5 text-sm sm:p-6">
+          <dl className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-x-5 gap-y-4 rounded-2xl border border-stone-200 bg-[#fffefa] p-4 text-sm sm:p-6">
             <CardField label="Carte" value={result.card.name} />
             <CardField label="Numéro" value={result.card.cardNumber} />
             {(source === 'photo' || result.card.language !== 'UNKNOWN') && <CardField label="Langue" value={languageLabels[result.card.language]} />}

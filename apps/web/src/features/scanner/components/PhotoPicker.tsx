@@ -17,7 +17,7 @@ export function PhotoPicker({ busy, isImporting, isScanning, onChange, onScan, p
     <section id="scanner" aria-label="Importer une photo de carte" className="relative flex scroll-mt-20 flex-col gap-5">
       {preview ? (
         <div className="relative flex min-h-64 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-100/70 p-5">
-          <img alt="Aperçu de la carte importée" className={`max-h-[360px] w-full rounded-sm object-contain transition ${isScanning ? 'opacity-40' : ''}`} src={preview} />
+          <img alt="Aperçu de la carte importée" className={`max-h-[min(360px,45dvh)] w-full rounded-sm object-contain transition ${isScanning ? 'opacity-40' : ''}`} src={preview} />
           {isScanning && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center" role="status">
             <Loader2 className="size-9 animate-spin motion-reduce:animate-none text-[#8f2430]" aria-hidden="true" />
             <p className="max-w-52 text-sm font-semibold text-stone-800">Lecture de la carte et comparaison des variantes…</p>
@@ -25,7 +25,7 @@ export function PhotoPicker({ busy, isImporting, isScanning, onChange, onScan, p
         </div>
       ) : (
         <button type="button" disabled={busy} onClick={() => input.current?.click()}
-          className="group flex min-h-64 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#8f2430]/20 bg-[#8f2430]/[0.025] px-6 py-10 sm:min-h-72 text-center transition hover:border-[#8f2430] hover:bg-[#faf5f3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-60">
+          className="group flex min-h-52 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#8f2430]/20 bg-[#8f2430]/[0.025] px-4 py-6 sm:px-6 sm:py-10 sm:min-h-72 text-center transition hover:border-[#8f2430] hover:bg-[#faf5f3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-60">
           <span className="flex size-16 items-center justify-center rounded-2xl border border-[#8f2430]/10 bg-white text-[#8f2430] shadow-sm transition group-hover:-translate-y-1 motion-reduce:transform-none">
             {isImporting ? <Loader2 className="size-8 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ImagePlus className="size-8" aria-hidden="true" />}
           </span>
@@ -34,7 +34,7 @@ export function PhotoPicker({ busy, isImporting, isScanning, onChange, onScan, p
         </button>
       )}
 
-      {preview && <div className="mx-auto flex w-full max-w-sm flex-col gap-3 sm:flex-row">
+      {preview && <div className="mx-auto flex w-full max-w-lg flex-col gap-3 sm:flex-row">
         <button
           className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:cursor-not-allowed disabled:opacity-50"
           disabled={busy}

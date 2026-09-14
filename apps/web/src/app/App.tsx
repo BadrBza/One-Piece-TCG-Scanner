@@ -41,7 +41,7 @@ export function App() {
 
   if (checkingSession || sessionError) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f3f1ec] p-6 text-stone-700">
+      <main className="flex min-h-dvh items-center justify-center bg-[#f3f1ec] p-6 text-stone-700">
         {sessionError ? (
           <div className="space-y-4 text-center">
             <p role="alert">{sessionError}</p>
@@ -55,8 +55,8 @@ export function App() {
   if (!user) return <LoginPage onLogin={onLogin} />;
 
   return (
-    <main className="min-h-screen bg-[#f3f1ec] text-[#24211f]">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 pb-12 sm:px-6 lg:px-8">
+    <main className="min-h-dvh bg-[#f3f1ec] text-[#24211f]">
+      <section className="mx-auto flex min-h-dvh w-full max-w-6xl min-w-0 flex-col gap-5 px-4 pb-8 sm:gap-8 sm:pb-12 sm:px-6 lg:px-8">
         <AppHeader activePage={page === 'portfolio' ? 'portfolio' : 'scanner'} email={user.email} nickname={user.nickname} avatar={user.avatar} loggingOut={loggingOut} onLogout={() => void onLogout()} />
         {logoutError && <p role="alert" className="text-sm text-red-700">{logoutError}</p>}
         {page === 'portfolio' ? <PortfolioPage key={user.id} /> : <ScannerPage key={user.id} />}

@@ -25,7 +25,7 @@ export function AddToPortfolio({ card }: { card: NewPortfolioCard }) {
   return (
     <div className="space-y-2 border-t border-stone-200 pt-4">
       <button type="button" onClick={() => void add()} disabled={saving}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27] disabled:opacity-60">
+        className="inline-flex min-h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27] disabled:opacity-60">
         {saving ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
         {saving ? 'Ajout en cours…' : quantity ? 'Ajouter un autre exemplaire' : 'Ajouter à ma collection'}
       </button>

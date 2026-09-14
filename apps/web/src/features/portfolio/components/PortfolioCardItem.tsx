@@ -26,7 +26,7 @@ export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onR
   }
 
   return (
-    <article className="flex flex-col gap-3 rounded-md border border-stone-300 bg-[#fffefa] p-4">
+    <article className="flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere] rounded-md border border-stone-300 bg-[#fffefa] p-4">
       {card.imageUrl && <img src={card.imageUrl} alt={card.name} loading="lazy" className="h-64 w-full rounded-sm bg-stone-100 object-contain p-2" />}
       <div>
         <p className="text-xs font-medium text-stone-500">{card.cardNumber} · Quantité : {card.quantity}</p>

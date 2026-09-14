@@ -3,6 +3,8 @@
 html {
   background: #f3f1ec;
   color: #24211f;
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 10rem;
 }
 
 body {
@@ -36,4 +38,20 @@ body {
 button,
 input {
   font: inherit;
+}
+
+/* Keep long names and provider messages inside narrow layouts. */
+p, h1, h2, h3, dd {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 639px) {
+  /* Keep text fields readable and avoid focus zoom on mobile browsers. */
+  input:not([type="file"]), select, textarea {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 768px) {
+  html { scroll-padding-top: 6rem; }
 }

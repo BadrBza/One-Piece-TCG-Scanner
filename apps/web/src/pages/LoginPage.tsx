@@ -53,13 +53,13 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f3f1ec] px-4 py-10 text-[#24211f]">
+    <main className="flex min-h-dvh items-center justify-center bg-[#f3f1ec] px-4 py-6 sm:py-10 text-[#24211f]">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-3">
           <img src="/hakiscan-logo.png" alt="" className="size-14 object-contain" />
           <span className="text-lg font-semibold tracking-tight">HakiScan</span>
         </div>
-        <section className="rounded-md border border-stone-300 border-t-[3px] border-t-[#8f2430] bg-[#fffefa] p-6 sm:p-8">
+        <section className="rounded-md border border-stone-300 border-t-[3px] border-t-[#8f2430] bg-[#fffefa] p-4 sm:p-8">
           <h1 className="text-2xl font-semibold tracking-tight">{registering ? 'Créer un compte' : 'Connexion'}</h1>
           <p className="mt-2 text-sm leading-relaxed text-stone-500">
             {registering ? 'Retrouve tes cartes dans ta collection personnelle.' : 'Connecte-toi pour scanner tes cartes et retrouver ta collection.'}
@@ -74,7 +74,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
                   <div className="min-w-0">
                     <label htmlFor="avatar" className="mb-1 block text-sm font-semibold">Photo de profil <span className="font-normal text-stone-500">(facultative)</span></label>
                     <p id="avatar-help" className="text-xs text-stone-500">JPG, PNG ou WebP · 2 Mo max.</p>
-                    {avatar && <button type="button" disabled={busy} onClick={() => setAvatar(undefined)} className="mt-1 min-h-8 text-xs font-medium text-[#8f2430] underline disabled:opacity-50">Retirer la photo</button>}
+                    {avatar && <button type="button" disabled={busy} onClick={() => setAvatar(undefined)} className="mt-1 min-h-11 text-xs font-medium text-[#8f2430] underline disabled:opacity-50">Retirer la photo</button>}
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
@@ -116,7 +116,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           </form>
           <p className="mt-6 text-center text-sm text-stone-500">
             {registering ? 'Déjà un compte ? ' : 'Pas encore de compte ? '}
-            <button type="button" disabled={busy} className="font-medium text-[#8f2430] hover:underline"
+            <button type="button" disabled={busy} className="min-h-11 font-medium text-[#8f2430] hover:underline"
               onClick={() => { setMode(registering ? 'login' : 'register'); setPassword(''); setError(null); }}>
               {registering ? 'Se connecter' : 'Créer un compte'}
             </button>
