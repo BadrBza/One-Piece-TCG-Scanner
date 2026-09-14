@@ -11,8 +11,7 @@ export function getCurrentUser() {
 export function authenticate(mode: AuthMode, credentials: Credentials) {
   return request<AuthUser>(`/auth/${mode}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
+    json: credentials,
   });
 }
 

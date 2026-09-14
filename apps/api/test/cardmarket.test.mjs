@@ -2,12 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CardmarketProvider } from '../dist/pricing/providers/cardmarket.provider.js';
 
-test('Cardmarket preserves distinct editions and missing trend prices; caches downloads', async () => {
+const requestUrl = input => typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+
+test('Cardmarket preserves distinct editions and missing trend prices; reloads on every call', async () => {
   const original = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async url => {
     calls++;
-    return Response.json(url.includes('productList') ? { products: [
+    return Response.json(requestUrl(url).includes('productList') ? { products: [
       { idProduct: 1, name: 'Zoro (OP01-001)', idExpansion: 10 },
       { idProduct: 2, name: 'Zoro (OP01-001)', idExpansion: 10 },
       { idProduct: 3, name: 'Other (OP01-0010)', idExpansion: 10 },
@@ -26,7 +28,7 @@ test('Cardmarket preserves distinct editions and missing trend prices; caches do
     assert.equal(refresh.prices.has(2), false);
     assert.equal(refresh.updatedAt, '2026-09-07T02:00:00Z');
     assert.deepEqual((await provider.getPrice({ cardNumber: 'OP99-999' })).products, []);
-    assert.equal(calls, 2);
+    assert.equal(calls, 6);
   } finally { globalThis.fetch = original; }
 });
 

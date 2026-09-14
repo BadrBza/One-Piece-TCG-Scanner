@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
@@ -8,7 +8,6 @@ import { ConfigService } from '@nestjs/config';
 import { RecognitionService } from '../dist/recognition/recognition.service.js';
 import { CardsService } from '../dist/cards/cards.service.js';
 import { CardVariantsService } from '../dist/pricing/card-variants.service.js';
-import { ScanCache } from '../dist/pricing/scan-cache.js';
 
 const png = await sharp({ create: { width: 12, height: 18, channels: 3, background: '#884422' } }).png().toBuffer();
 const photo = `data:image/png;base64,${png.toString('base64')}`;
@@ -18,6 +17,7 @@ const guide = { source: 'cardmarket', currency: 'EUR', products };
 const match = { selectedId: '2', confidence: 0.98, language: 'Anglais', variant: 'Illustration alternative' };
 const config = extra => new ConfigService({ GOOGLE_GENERATIVE_AI_API_KEY: 'test', ...extra });
 const reply = value => Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify(value) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 8, totalTokenCount: 20 } });
+const requestUrl = input => typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
 async function setup(t, results = [match]) {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-test-'));
@@ -25,8 +25,9 @@ async function setup(t, results = [match]) {
   const requests = [];
   let downloads = 0;
   globalThis.fetch = async (url, options) => {
-    if (String(url).includes('optcgapi.com')) return Response.json([{ rarity: 'L', set_name: 'Set' }]);
-    if (String(url).includes('cardmarketapi.com')) {
+    const target = requestUrl(url);
+    if (target.includes('optcgapi.com')) return Response.json([{ rarity: 'L', set_name: 'Set' }]);
+    if (target.includes('cardmarketapi.com')) {
       downloads++;
       return new Response(png, { headers: { 'content-type': 'image/png' } });
     }
@@ -35,7 +36,7 @@ async function setup(t, results = [match]) {
     return reply(results[Math.min(requests.length - 1, results.length - 1)]);
   };
   t.after(() => { globalThis.fetch = original; });
-  const settings = config({ SCAN_CACHE_DIR: directory });
+  const settings = config();
   return { directory, requests, downloads: () => downloads, settings, service: new CardVariantsService(settings) };
 }
 
@@ -98,9 +99,8 @@ test('a sole catalog candidate is still visually verified', async t => {
   assert.equal(requests.length, 1);
 });
 
-test('unknown language is not replaced by the cached language of another photo', async t => {
+test('unknown language stays unknown when the model cannot determine it', async t => {
   const { service } = await setup(t, [{ ...match, language: 'Non déterminée' }]);
-  await service.disk.get('selected-v1:2', 60000, async () => ({ id: '2', language: 'Anglais', variant: 'Standard' }));
   const cards = new CardsService({ optimized: true }, { getPrice: async () => guide }, service);
   const result = await cards.lookup('OP01-001', photo);
   assert.equal(result.card.language, 'UNKNOWN');
@@ -150,33 +150,15 @@ test('Gemini errors preserve all candidates', async t => {
   assert.equal(result.products.length, 2);
 });
 
-test('references and thumbnails survive a service restart', async t => {
-  const { service, settings, downloads } = await setup(t);
+test('references are downloaded on every scan', async t => {
+  const { service, downloads } = await setup(t);
   await service.variants({ cardNumber: 'OP01-001' }, guide, photo);
-  await new CardVariantsService(settings).variants({ cardNumber: 'OP01-001' }, guide, photo);
-  assert.equal(downloads(), 2);
+  await service.variants({ cardNumber: 'OP01-001' }, guide, photo);
+  assert.equal(downloads(), 4);
 });
 
 test('optional card information does not hold up a match', async t => {
   const { service } = await setup(t);
   service.getCardInfo = () => new Promise(() => {});
   assert.equal((await service.variants({ cardNumber: 'OP01-001' }, guide, photo)).selectedProductId, 2);
-});
-
-test('persistent cache coalesces concurrent reads, expires and recovers from corruption or fetch failures', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'scanner-cache-test-'));
-  const cache = new ScanCache(directory);
-  let calls = 0;
-  const fetchValue = async () => ({ revision: ++calls });
-  const results = await Promise.all([cache.get('key', 60_000, fetchValue), cache.get('key', 60_000, fetchValue)]);
-  assert.deepEqual(results, [{ revision: 1 }, { revision: 1 }]);
-  assert.equal((await new ScanCache(directory).get('key', 60_000, fetchValue)).revision, 1);
-  const file = join(directory, (await readdir(directory)).find(file => file.endsWith('.json')));
-  const entry = JSON.parse(await readFile(file, 'utf8'));
-  await writeFile(file, JSON.stringify({ ...entry, expires: 0 }));
-  assert.equal((await new ScanCache(directory).get('key', 60_000, fetchValue)).revision, 2);
-  await writeFile(file, '{invalid');
-  assert.equal((await new ScanCache(directory).get('key', 60_000, fetchValue)).revision, 3);
-  await assert.rejects(cache.get('failure', 60_000, async () => { throw new Error('offline'); }));
-  assert.equal((await cache.get('failure', 60_000, fetchValue)).revision, 4);
 });

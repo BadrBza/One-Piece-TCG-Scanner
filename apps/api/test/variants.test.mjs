@@ -1,27 +1,23 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { test, after } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ConfigService } from '@nestjs/config';
 import { CardVariantsService } from '../dist/pricing/card-variants.service.js';
 
-const cacheDir = await mkdtemp(join(tmpdir(), 'scanner-legacy-'));
-after(() => rm(cacheDir, { recursive: true, force: true }));
-let cacheIndex = 0;
+const requestUrl = input => typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 const photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5V8AAAAASUVORK5CYII=';
 const products = [{ id: 1, name: 'Luffy', expansionId: 1, trendPrice: 99 }, { id: 2, name: 'Luffy', expansionId: 1, trendPrice: 5 }];
+const config = () => new ConfigService({ SCAN_OPTIMIZED: 'false', GOOGLE_GENERATIVE_AI_API_KEY: 'test' });
 
 test('manual lookup retains every variant and does not select one automatically', async () => {
   const original = globalThis.fetch;
-  globalThis.fetch = async url => String(url).includes('optcgapi.com')
+  globalThis.fetch = async url => requestUrl(url).includes('optcgapi.com')
     ? Response.json([{ rarity: 'SEC', set_name: 'Carrying On His Will' }])
     : Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify({ items: [
       { id: '1', language: 'Japonais', rarity: 'SEC', variant: 'Manga' },
       { id: '2', language: 'Chinois', rarity: 'SEC', variant: 'Standard' },
     ] }) }] }, finishReason: 'STOP' }] });
   try {
-    const service = new CardVariantsService(new ConfigService({ SCAN_OPTIMIZED: 'false', SCAN_CACHE_DIR: join(cacheDir, String(cacheIndex++)), GOOGLE_GENERATIVE_AI_API_KEY: 'test' }));
+    const service = new CardVariantsService(config());
     service.reference = async () => ({ data: Buffer.from('test'), mediaType: 'image/png' });
     const result = await service.variants({ cardNumber: 'OP13-118' }, { source: 'cardmarket', currency: 'EUR', products });
     assert.equal(result.products.length, 2);
@@ -39,7 +35,7 @@ test('manual lookup retains every variant and does not select one automatically'
 
 test('photo comparison selects the exact Cardmarket product and downloads each reference once', async () => {
   const original = globalThis.fetch;
-  globalThis.fetch = async url => String(url).includes('optcgapi.com')
+  globalThis.fetch = async url => requestUrl(url).includes('optcgapi.com')
     ? Response.json([{ rarity: 'SEC', set_name: 'Carrying On His Will' }])
     : Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify({
       selectedId: '2', confidence: 0.97, items: [
@@ -49,7 +45,7 @@ test('photo comparison selects the exact Cardmarket product and downloads each r
     }) }] }, finishReason: 'STOP' }] });
   try {
     let downloads = 0;
-    const service = new CardVariantsService(new ConfigService({ SCAN_OPTIMIZED: 'false', SCAN_CACHE_DIR: join(cacheDir, String(cacheIndex++)), GOOGLE_GENERATIVE_AI_API_KEY: 'test' }));
+    const service = new CardVariantsService(config());
     service.reference = async () => { downloads++; return { data: Buffer.from('reference'), mediaType: 'image/png' }; };
     const result = await service.variants({ cardNumber: 'OP13-118' }, { source: 'cardmarket', currency: 'EUR', products }, photo);
     assert.equal(result.selectedProductId, 2);
@@ -61,13 +57,13 @@ test('photo comparison selects the exact Cardmarket product and downloads each r
 
 test('an invented product id or unavailable references falls back to the variant list', async () => {
   const original = globalThis.fetch;
-  globalThis.fetch = async url => String(url).includes('optcgapi.com')
+  globalThis.fetch = async url => requestUrl(url).includes('optcgapi.com')
     ? Response.json([{ rarity: 'SEC', set_name: 'Set' }])
     : Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify({
       selectedId: '999', confidence: 1, items: [],
     }) }] }, finishReason: 'STOP' }] });
   try {
-    const service = new CardVariantsService(new ConfigService({ SCAN_OPTIMIZED: 'false', SCAN_CACHE_DIR: join(cacheDir, String(cacheIndex++)), GOOGLE_GENERATIVE_AI_API_KEY: 'test' }));
+    const service = new CardVariantsService(config());
     service.reference = async () => ({ data: Buffer.from('reference'), mediaType: 'image/png' });
     assert.equal((await service.variants({ cardNumber: 'OP13-118' }, { source: 'cardmarket', currency: 'EUR', products }, photo)).selectedProductId, undefined);
 
@@ -76,11 +72,11 @@ test('an invented product id or unavailable references falls back to the variant
   } finally { globalThis.fetch = original; }
 });
 
-test('Cardmarket reference images are reused between scans', async () => {
+test('Cardmarket reference images are downloaded on every scan', async () => {
   const original = globalThis.fetch;
   let imageDownloads = 0;
   globalThis.fetch = async url => {
-    const target = String(url);
+    const target = requestUrl(url);
     if (target.includes('optcgapi.com')) {
       return Response.json([{ rarity: 'SEC', set_name: 'Set' }]);
     }
@@ -94,10 +90,10 @@ test('Cardmarket reference images are reused between scans', async () => {
   };
 
   try {
-    const service = new CardVariantsService(new ConfigService({ SCAN_OPTIMIZED: 'false', SCAN_CACHE_DIR: join(cacheDir, String(cacheIndex++)), GOOGLE_GENERATIVE_AI_API_KEY: 'test' }));
+    const service = new CardVariantsService(config());
     const guide = { source: 'cardmarket', currency: 'EUR', products };
     await service.variants({ cardNumber: 'OP13-118' }, guide, photo);
     await service.variants({ cardNumber: 'OP13-118' }, guide, photo);
-    assert.equal(imageDownloads, 2);
+    assert.equal(imageDownloads, 4);
   } finally { globalThis.fetch = original; }
 });

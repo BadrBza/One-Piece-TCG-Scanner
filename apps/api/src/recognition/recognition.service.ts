@@ -18,18 +18,14 @@ import { CardNumberSchema, type CardNumberConfirmation } from '../cards/scan-car
 import { isCardNumber, normalizeCardNumber } from './card-number.js';
 import { measureScan, recordUsage, scanTelemetry } from './scan-metrics.js';
 import { unwrapProviderError, withGeminiModel } from './gemini-model.js';
+import { parseDataUrl } from './decode-image.js';
 
 type ImageData = { data: Buffer; mediaType: string };
 
-const IMAGE_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
-
 function decodeImage(value: string, maxBytes: number, errorMessage: string): ImageData {
-  const match = IMAGE_PATTERN.exec(value);
-  if (!match || match[2].length % 4 !== 0) throw new BadRequestException(errorMessage);
-
-  const data = Buffer.from(match[2], 'base64');
-  if (!data.length || data.length > maxBytes) throw new BadRequestException(errorMessage);
-  return { data, mediaType: match[1] };
+  const image = parseDataUrl(value);
+  if (!image || image.data.length > maxBytes) throw new BadRequestException(errorMessage);
+  return image;
 }
 
 @Injectable()

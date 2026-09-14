@@ -49,38 +49,35 @@ const rows = [];
 for (const [index, item] of prepared.entries()) {
   // Alternate order to reduce systematic model warm-up/time-of-day bias.
   for (const optimized of index % 2 ? [true, false] : [false, true]) {
-    const cacheDirectory = await mkdtemp(join(directory, 'references-'));
     const config = new ConfigService({
-      ...process.env, SCAN_OPTIMIZED: String(numberComparison || optimized), SCAN_CACHE_DIR: cacheDirectory,
+      ...process.env, SCAN_OPTIMIZED: String(numberComparison || optimized),
       ...(numberComparison && !optimized ? { GEMINI_NUMBER_MODEL: 'gemini-3.5-flash', SCAN_NUMBER_REASONING: 'low' } : {}),
     });
     const cards = new CardsService(new RecognitionService(config), new CardmarketProvider(), new CardVariantsService(config));
-    for (const cache of ['cold', 'warm']) {
-      metrics = [];
-      const start = performance.now();
-      let result;
-      let error;
-      try { result = await cards.scan(item.photo, item.crop); } catch (reason) { error = reason.getStatus?.() ?? 'provider-error'; }
-      const selected = result?.prices?.cardmarket?.selectedProductId;
-      rows.push({
-        id: item.id, optimized, cache, durationMs: Math.round(performance.now() - start),
-        selectedProductId: selected ?? null,
-        correctNumber: result?.card?.cardNumber === item.cardNumber,
-        correctLanguage: result?.card?.language === item.language,
-        correctSelection: selected === item.productId,
-        wrongAutoSelection: selected !== undefined && selected !== item.productId,
-        error, metrics: [...metrics],
-      });
-      console.log(`${item.id}: ${optimized ? 'optimized' : numberComparison ? 'number-baseline' : 'legacy'} / ${cache} completed`);
-    }
+    metrics = [];
+    const start = performance.now();
+    let result;
+    let error;
+    try { result = await cards.scan(item.photo, item.crop); } catch (reason) { error = reason.getStatus?.() ?? 'provider-error'; }
+    const selected = result?.prices?.cardmarket?.selectedProductId;
+    rows.push({
+      id: item.id, optimized, durationMs: Math.round(performance.now() - start),
+      selectedProductId: selected ?? null,
+      correctNumber: result?.card?.cardNumber === item.cardNumber,
+      correctLanguage: result?.card?.language === item.language,
+      correctSelection: selected === item.productId,
+      wrongAutoSelection: selected !== undefined && selected !== item.productId,
+      error, metrics: [...metrics],
+    });
+    console.log(`${item.id}: ${optimized ? 'optimized' : numberComparison ? 'number-baseline' : 'legacy'} completed`);
   }
 }
 const percentile = (values, p) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * p) - 1)];
 const summary = [];
-for (const optimized of [false, true]) for (const cache of ['cold', 'warm']) {
-  const group = rows.filter(row => row.optimized === optimized && row.cache === cache);
+for (const optimized of [false, true]) {
+  const group = rows.filter(row => row.optimized === optimized);
   summary.push({
-    optimized, cache, cases: group.length,
+    optimized, cases: group.length,
     medianMs: percentile(group.map(row => row.durationMs), 0.5),
     p95Ms: percentile(group.map(row => row.durationMs), 0.95),
     correctSelections: group.filter(row => row.correctSelection).length,

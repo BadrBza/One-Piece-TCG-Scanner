@@ -15,10 +15,6 @@ Gemini. Les nouvelles tentatives et le modèle de secours peuvent augmenter ce n
   lecture précédente, choisir `gemini-3.5-flash` et `low`.
 - `GEMINI_NUMBER_FALLBACK_MODEL=gemini-3.5-flash` lit la photo complète en secours,
   toujours avec le raisonnement `low`.
-- `SCAN_CACHE_DIR=.cache/scanner` désigne un dossier relatif au processus API.
-  Les références publiques, miniatures et métadonnées y expirent après 24 heures.
-  Aucune photo utilisateur n'y est enregistrée. Les prix conservent leur propre
-  cache de catalogue d'une heure et ne sont pas figés avec les images.
 
 ## Comportement
 
@@ -37,15 +33,10 @@ de cache fournisseur. Un ID inconnu, aucune correspondance ou un score insuffisa
 laissent le choix à l'utilisateur. Une référence manquante interdit la sélection
 automatique, même si une autre semble correspondre.
 
-L'extension et la rareté sont récupérées en parallèle et réutilisées si disponibles
-à temps ; leur absence ne retarde pas le résultat. Les informations inconnues restent
-inconnues. Les descriptions des références sont conservées en cache : la comparaison
-ne redécrit plus toutes les cartes. Une recherche manuelle peut compléter ces descriptions.
-
-Le stockage est facultatif : en cas d'erreur disque, la reconnaissance continue.
-Les requêtes concurrentes d'une même ressource sont mutualisées dans un processus.
-Les fichiers expirés sont remplacés lorsqu'ils sont réutilisés ; il n'y a pas de
-purge automatique des références jamais réutilisées ni de coordination entre serveurs.
+L'extension et la rareté sont récupérées en parallèle ; leur absence ne retarde pas
+le résultat. Les informations inconnues restent inconnues. Les images de référence,
+miniatures, métadonnées et le catalogue Cardmarket sont rechargés à chaque scan.
+Une recherche manuelle peut compléter les descriptions.
 
 ## Mesures et benchmark
 
@@ -86,7 +77,7 @@ node --env-file=.env apps/api/scripts/benchmark-scan.mjs chemin/manifest.json --
 ```
 
 Le script valide d'abord les fichiers, puis compare l'ancien et le nouveau parcours
-sur chaque photo avec cache applicatif froid puis chaud. L'ordre des parcours alterne.
+sur chaque photo. L'ordre des parcours alterne.
 Il ne peut pas vider le cache interne Gemini. Le rapport sous `.cache/scanner-benchmarks`
 contient médiane, p95, erreurs, bonnes/mauvaises sélections, langue, tokens et étapes.
 Les fichiers des photos ne sont pas copiés dans le rapport. Les tokens seuls ne

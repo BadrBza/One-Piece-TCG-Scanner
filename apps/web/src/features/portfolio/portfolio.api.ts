@@ -26,8 +26,7 @@ export async function getPortfolio(): Promise<PortfolioCard[]> {
 export async function addPortfolioCard(card: NewPortfolioCard): Promise<PortfolioCard> {
   return request('/portfolio', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(card),
+    json: card,
   });
 }
 

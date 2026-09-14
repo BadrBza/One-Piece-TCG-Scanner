@@ -79,7 +79,6 @@ choisit sa variante dans une grille d'images avec extension, langue, rareté
 La langue et le type d'illustration sont lus par l'IA sur chaque image de
 référence. La rareté provient du catalogue de cartes. Ces informations restent
 des indications à vérifier.
-Les descriptions sont mises en cache 24 heures en mémoire.
 
 Le choix affiche uniquement la tendance du guide public pour la fiche choisie,
 non filtrée par langue ni état. Il n'y a plus de double lecture bloquante,

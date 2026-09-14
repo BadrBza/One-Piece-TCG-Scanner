@@ -54,8 +54,7 @@ export async function lookupCard(number: string): Promise<RecognizedScanResult> 
 export async function resolveCard(number: string, image: string): Promise<RecognizedScanResult> {
   return request('/cards/resolve', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cardNumber: number, image }),
+    json: { cardNumber: number, image },
   });
 }
 
@@ -65,12 +64,6 @@ export async function scanCard(
 ): Promise<ScanCardResult> {
   return request('/cards/scan', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      image,
-      numberImage,
-    }),
+    json: { image, numberImage },
   });
 }
