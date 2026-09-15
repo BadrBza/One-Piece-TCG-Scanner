@@ -44,7 +44,7 @@ export function PortfolioPage() {
         <div className="rounded-md border border-stone-300 bg-[#fffefa] px-6 py-16 text-center">
           <Layers className="mx-auto size-9 text-stone-400" aria-hidden="true" />
           <h2 className="mt-4 text-lg font-semibold">Ta collection commence ici</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-stone-500">Scanne une carte, choisis sa variante puis ajoute-la à ta collection.</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-stone-500">Scanne une carte puis ajoute-la à ta collection.</p>
         </div>
       ) : (
         <>

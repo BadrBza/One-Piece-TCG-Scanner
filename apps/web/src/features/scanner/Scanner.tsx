@@ -1,5 +1,5 @@
 import { ArrowDown, Camera, Keyboard, Loader2, ScanLine } from 'lucide-react';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode } from 'react';
 
 import { useScanner } from './useScanner';
 import { ManualLookup } from './components/ManualLookup';
@@ -12,14 +12,6 @@ export function Scanner() {
     error, isImporting, isScanning, isLookingUp, busy, selectMode, importPhoto,
     recognizeCard, confirmCardNumber, findCard,
   } = useScanner();
-  const resultPanel = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    if (result) resultPanel.current?.scrollIntoView({
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
-      block: 'start',
-    });
-  }, [result]);
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-4xl space-y-6 pb-4 sm:space-y-10">
@@ -34,7 +26,6 @@ export function Scanner() {
         <div className="flex flex-col gap-4 border-b border-stone-200/80 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div>
             <h2 className="font-semibold text-stone-900">Trouver ma carte</h2>
-            <p className="mt-1 text-xs text-stone-500">Choisis ta méthode de recherche.</p>
           </div>
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1" role="group" aria-label="Méthode de recherche">
             <ModeButton active={mode === 'photo'} disabled={busy} icon={<Camera className="size-4" aria-hidden="true" />} onClick={() => selectMode('photo')}>Photo</ModeButton>
@@ -60,12 +51,12 @@ export function Scanner() {
                 onClick={() => void confirmCardNumber(number)}
                 className="min-h-11 rounded-lg border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 disabled:opacity-50">{number}</button>)}
             </div>
-            {isLookingUp && <p className="mt-3 flex items-center gap-2 text-sm text-amber-900"><Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> Recherche en cours…</p>}
+            {isLookingUp && <p className="mt-3 flex items-center gap-2 text-sm text-amber-900"><Loader2 className="size-4 loading-indicator" aria-hidden="true" /> Recherche en cours…</p>}
           </div>}
         </div>
       </div>
 
-      {result && <section ref={resultPanel} aria-labelledby="scan-result-title" className="scroll-mt-40 md:scroll-mt-24">
+      {result && <section aria-labelledby="scan-result-title">
         <div className="mb-5 flex items-center gap-3">
           <span className="flex size-9 items-center justify-center rounded-full bg-[#8f2430]/10 text-[#8f2430]"><ArrowDown className="size-4" aria-hidden="true" /></span>
           <div>

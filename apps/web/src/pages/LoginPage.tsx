@@ -56,9 +56,6 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
         </div>
         <section className="rounded-md border border-stone-300 border-t-[3px] border-t-[#8f2430] bg-[#fffefa] p-4 sm:p-8">
           <h1 className="text-2xl font-semibold tracking-tight">{registering ? 'Créer un compte' : 'Connexion'}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-stone-500">
-            {registering ? 'Retrouve tes cartes dans ta collection personnelle.' : 'Connecte-toi pour scanner tes cartes et retrouver ta collection.'}
-          </p>
           <form className="mt-6 space-y-4" onSubmit={submit}>
             {registering && <>
               <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
@@ -105,7 +102,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
             {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <button type="submit" disabled={busy}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27] disabled:opacity-60">
-              {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+              {busy && <Loader2 className="size-4 loading-indicator" aria-hidden="true" />}
               {busy ? 'Patiente un instant…' : registering ? 'Créer mon compte' : 'Se connecter'}
             </button>
           </form>

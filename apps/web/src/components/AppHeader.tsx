@@ -11,7 +11,7 @@ type Props = {
 
 export function AppHeader({ activePage, email, nickname, avatar, loggingOut, onLogout }: Props) {
   return (
-    <header className="sticky top-0 z-20 border-b border-stone-300 bg-[#f3f1ec] py-3">
+    <header data-app-header className="sticky top-0 z-20 border-b border-stone-300 bg-[#f3f1ec] py-3">
       <nav aria-label="Navigation principale" className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 md:flex md:justify-between md:gap-4">
         <a href="#scanner" aria-label="HakiScan — Scanner" className="flex min-w-0 items-center gap-3 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8f2430]">
           <span className="flex size-12 shrink-0 items-center justify-center">

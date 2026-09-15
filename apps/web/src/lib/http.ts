@@ -1,4 +1,4 @@
-import ky, { HTTPError, type Options } from 'ky';
+import ky, { HTTPError, TimeoutError, type Options } from 'ky';
 
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
@@ -21,6 +21,12 @@ export async function request<T>(path: string, options?: Options): Promise<T> {
   try {
     return await api(path.replace(/^\//, ''), options).json<T>();
   } catch (reason) {
+    if (reason instanceof TimeoutError) {
+      const analysis = path === '/cards/scan' || path === '/cards/resolve';
+      throw new Error(analysis
+        ? 'L’analyse prend trop de temps. Le serveur peut encore la terminer. Patiente avant de relancer ou utilise la recherche par référence.'
+        : 'Le serveur met trop de temps à répondre. Réessaie dans un instant.');
+    }
     if (reason instanceof HTTPError) {
       if (reason.response.status === 401 && !path.startsWith('/auth/')) {
         window.dispatchEvent(new Event('session-expired'));

@@ -61,7 +61,7 @@ export function RemoveCardDialog({ card, removing, error, onCancel, onConfirm }:
             className="min-h-11 flex-1 rounded-lg border border-stone-300 px-4 text-sm font-semibold hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-50">Annuler</button>
           <button type="button" disabled={removing} onClick={onConfirm}
             className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-[#8f2430] px-4 text-sm font-semibold text-white hover:bg-[#761d27] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-60">
-            {removing ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
+            {removing ? <LoaderCircle className="size-4 loading-indicator" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
             <span role="status">{removing ? 'Suppression…' : 'Retirer la carte'}</span>
           </button>
         </div>

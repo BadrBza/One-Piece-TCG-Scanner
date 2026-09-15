@@ -35,12 +35,38 @@ automatique, même si une autre semble correspondre.
 
 L'extension et la rareté sont récupérées en parallèle ; leur absence ne retarde pas
 le résultat. Les informations inconnues restent inconnues. Les images de référence,
-miniatures, métadonnées et le catalogue Cardmarket sont rechargés à chaque scan.
+miniatures et métadonnées sont rechargées à chaque scan. Le catalogue et le guide
+des prix sont partagés entre les scans via le cache décrit ci-dessous.
 La recherche manuelle appelle uniquement Cardmarket : elle renvoie les fiches,
 leurs prix et les URL de leurs images sans Gemini, OPTCG ni téléchargement
 d’images côté serveur. Le navigateur charge les images, et les informations
-absentes du catalogue sont masquées. Le chargement du catalogue et du guide
-des prix reste inchangé.
+absentes du catalogue sont masquées. Cette recherche utilise le même cache Cardmarket.
+
+## Cache Cardmarket
+
+`lru-cache` conserve un ensemble cohérent de produits et de prix en mémoire.
+`CARDMARKET_CACHE_TTL_MS=3600000` définit une validité d’une heure ;
+`CARDMARKET_CACHE_ENABLED=false` contourne le cache mémoire et disque après redémarrage.
+
+Au démarrage, `.cache/cardmarket/snapshot.json` est lu et validé une seule fois.
+Une copie périmée reste utilisable pendant son actualisation en arrière-plan ;
+sans copie valide, le premier chargement est attendu. Les requêtes simultanées
+partagent ce chargement. Chaque actualisation réussie reconstruit les index et
+sauvegarde le fichier par remplacement atomique, sans attendre le disque pour répondre.
+Une erreur réseau conserve la dernière version valide et sa date ; une erreur disque
+n’empêche pas le fonctionnement en mémoire. Les données peuvent donc dépasser une heure
+en cas de panne prolongée. L’actualisation des collections exige un chargement frais
+et conserve la date du guide, même lorsqu’il n’a pas changé.
+
+Les étapes `catalog-disk`, `catalog-cache`, `catalog-fresh`, `catalog-download`,
+`prices-download`, `catalog-validate` et `catalog-index` distinguent les coûts.
+Les logs du fournisseur indiquent `hit`, `miss`, `inflight`, `stale` ou `refresh`.
+Le temps `catalog-cache` inclut l’attente réseau sur un cache froid ; les étapes imbriquées
+ne doivent pas être additionnées. Aucun cache d’image ni de résultat Gemini n’est ajouté.
+
+Pour comparer les performances, utiliser les mêmes photos à froid, à chaud et après
+redémarrage, ainsi que des requêtes simultanées. Désactiver le cache pour mesurer
+l’ancien comportement ; un benchmark mélangeant caches froids et chauds n’isole pas l’IA.
 
 ## Mesures et benchmark
 

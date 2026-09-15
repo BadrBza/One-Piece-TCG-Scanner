@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 
 import type { CardRecognition, PriceResult } from '../scanner.api';
@@ -19,9 +19,24 @@ export function CardmarketPrices({ price, card, manual = false }: { price: Price
   const selected = price.products?.find(product => product.id === selectedId);
 
   useEffect(() => setSelectedId(price.selectedProductId ?? null), [price]);
+  const detailsPanel = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const panel = detailsPanel.current;
+      if (!panel) return;
+      const headerHeight = document.querySelector('[data-app-header]')?.getBoundingClientRect().height ?? 0;
+      panel.focus({ preventScroll: true });
+      window.scrollTo({
+        top: Math.max(0, window.scrollY + panel.getBoundingClientRect().top - headerHeight - 16),
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [price, selected?.id]);
 
   return (
-    <section className="rounded-2xl border border-stone-200 min-w-0 bg-white p-4 text-stone-900 sm:p-6" aria-label="Variantes Cardmarket">
+    <section ref={detailsPanel} tabIndex={-1} className="outline-none rounded-2xl border border-stone-200 min-w-0 bg-white p-4 text-stone-900 sm:p-6" aria-label={selected ? `Carte trouvée : ${selected.name}` : 'Variantes Cardmarket'}>
       {selected ? (
         <SelectedVariant key={selected.id} cardNumber={card.cardNumber} product={selected} manual={manual} onBack={() => setSelectedId(null)} />
       ) : (
@@ -37,7 +52,7 @@ function SelectedVariant({ cardNumber, product, onBack, manual }: { cardNumber: 
       <p className="text-sm text-stone-500">Estimation Cardmarket</p>
       <h3 className="mt-1 text-xl font-semibold">Cote de ta carte</h3>
       <div className={`mt-4 grid min-w-0 gap-5 ${product.imageUrl ? 'lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-8' : ''}`}>
-        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="mx-auto self-start w-full max-w-64 max-h-80 lg:max-h-[480px] lg:max-w-sm rounded-sm border border-stone-200 bg-stone-50 object-contain p-2" />}
+        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="mx-auto self-start w-full max-w-64 h-80 lg:h-[480px] lg:max-w-sm rounded-sm border border-stone-200 bg-stone-50 object-contain p-2" />}
         <div className="min-w-0 space-y-3 [overflow-wrap:anywhere]">
         <p className="font-medium">{title(product)}</p>
         <p className="text-sm text-stone-700">{product.name}</p>

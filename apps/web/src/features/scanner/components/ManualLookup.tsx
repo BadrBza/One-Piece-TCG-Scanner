@@ -20,7 +20,7 @@ export function ManualLookup({ cardNumber, disabled, isLoading, onChange, onSubm
     >
       <div>
         <label htmlFor="card-number" className="block text-lg font-semibold">Tu connais sa référence ?</label>
-        <p id="card-number-help" className="mt-1 text-sm leading-relaxed text-stone-500">Saisis la référence imprimée en bas de la carte, par exemple OP01-001 (la lettre O, puis P). Cette méthode affiche les variantes disponibles.</p>
+        <p id="card-number-help" className="mt-1 text-sm leading-relaxed text-stone-500">Saisis la référence imprimée en bas de la carte, par exemple OP01-001 et puis choisis la carte.</p>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
@@ -37,7 +37,7 @@ export function ManualLookup({ cardNumber, disabled, isLoading, onChange, onSubm
           className="min-h-12 min-w-0 flex-1 rounded-xl border border-stone-300 bg-white px-3 text-base font-semibold uppercase tracking-wide text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-[#8f2430] focus:ring-3 focus:ring-[#8f2430]/10"
         />
         <button type="submit" disabled={!cardNumber.trim() || disabled} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#8f2430] px-5 text-sm font-semibold text-white transition hover:bg-[#761d27] disabled:cursor-not-allowed disabled:opacity-50">
-          {isLoading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
+          {isLoading ? <Loader2 className="size-4 loading-indicator" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
           {isLoading ? 'Recherche…' : 'Voir les prix'}
         </button>
       </div>

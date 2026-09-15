@@ -55,3 +55,26 @@ p, h1, h2, h3, dd {
 @media (min-width: 768px) {
   html { scroll-padding-top: 6rem; }
 }
+
+.loading-indicator {
+  flex-shrink: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: loading-spin 1s linear infinite;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loading-fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Indicate activity without rotation when reduced motion is requested. */
+  .loading-indicator {
+    animation: loading-fade 2s ease-in-out infinite !important;
+  }
+}
