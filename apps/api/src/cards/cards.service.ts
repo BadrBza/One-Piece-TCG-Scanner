@@ -18,8 +18,7 @@ export class CardsService {
   ) {}
 
   async lookup(cardNumber: string) {
-    const card: CardRecognition = { cardNumber, name: cardNumber, language: 'UNKNOWN',
-      rarity: null, variant: 'unknown', confidence: 0 };
+    const card = this.createCard(cardNumber);
     const guide = await this.cardmarket.getPrice(card);
     const products = guide.products?.map((product, index) => ({
       ...product,
@@ -31,8 +30,7 @@ export class CardsService {
   }
 
   async resolve(cardNumber: string, photo: string) {
-    const card: CardRecognition = { cardNumber, name: cardNumber, language: 'UNKNOWN',
-      rarity: null, variant: 'unknown', confidence: 0 };
+    const card = this.createCard(cardNumber);
     const guide = await this.cardmarket.getPrice(card);
     const prices = { cardmarket: await this.cardVariants.variants(card, guide, photo) };
     this.fillCard(card, prices.cardmarket);
@@ -61,6 +59,10 @@ export class CardsService {
       if (this.recognitionService.optimized) this.fillCard(card, prices.cardmarket);
       return { card, prices };
     });
+  }
+
+  private createCard(cardNumber: string): CardRecognition {
+    return { cardNumber, name: cardNumber, language: 'UNKNOWN', rarity: null, variant: 'unknown', confidence: 0 };
   }
 
   private fillCard(card: CardRecognition, price: PriceResult) {

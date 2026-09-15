@@ -1,8 +1,8 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
-import sharp from 'sharp';
+import { prepareAvatar } from '../common/image-utils.js';
 import { AuthRepository } from './auth.repository.js';
 import type { AuthUser, Credentials, Registration } from './auth.schema.js';
 
@@ -69,18 +69,4 @@ function tokenHash(token: string) {
 
 function readCookie(header: string | undefined, name: string) {
   return header?.split(';').map(value => value.trim()).find(value => value.startsWith(name + '='))?.slice(name.length + 1);
-}
-
-async function prepareAvatar(source: string): Promise<string> {
-  try {
-    const data = Buffer.from(source.split(',')[1], 'base64');
-    if (!data.length || data.length > 2 * 1024 * 1024) throw new Error('Invalid image size');
-    const image = sharp(data, { limitInputPixels: 25_000_000 });
-    const metadata = await image.metadata();
-    if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1) throw new Error('Unsupported image');
-    const avatar = await image.rotate().resize(256, 256, { fit: 'cover' }).webp({ quality: 80 }).toBuffer();
-    return `data:image/webp;base64,${avatar.toString('base64')}`;
-  } catch {
-    throw new BadRequestException('Choisis une photo JPG, PNG ou WebP valide de 2 Mo maximum (25 mégapixels maximum).');
-  }
 }

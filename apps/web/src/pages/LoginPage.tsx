@@ -3,6 +3,7 @@ import { Camera, Loader2, UserRound } from 'lucide-react';
 
 import { authenticate, type AuthMode, type AuthUser } from '../features/auth/auth.api';
 import { errorMessage } from '../lib/http';
+import { readFile } from '../lib/image-utils';
 
 export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const [mode, setMode] = useState<AuthMode>('login');
@@ -41,13 +42,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
     }
     setReadingPhoto(true);
     try {
-      const data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Lecture impossible.'));
-        reader.onerror = () => reject(new Error('Lecture impossible.'));
-        reader.readAsDataURL(file);
-      });
-      setAvatar(data);
+      setAvatar(await readFile(file));
     } catch { setError('Impossible de lire cette photo. Essaie avec une autre image.'); }
     finally { setReadingPhoto(false); }
   }

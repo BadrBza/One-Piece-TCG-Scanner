@@ -2,8 +2,7 @@ import { type ChangeEvent, useState } from 'react';
 
 import { isNumberConfirmation, lookupCard, resolveCard, scanCard, type NumberConfirmationResult, type RecognizedScanResult } from './scanner.api';
 import { errorMessage } from '../../lib/http';
-import { cardNumberCrop } from './card-number-crop';
-import { readFile, validateImageFile } from './image-file';
+import { cardNumberCrop, readFile, validateImageFile } from '../../lib/image-utils';
 
 type ScanMode = 'photo' | 'manual';
 

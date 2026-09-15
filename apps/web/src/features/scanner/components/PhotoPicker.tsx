@@ -1,4 +1,4 @@
-import { ImagePlus, Loader2, ScanSearch, Upload, Check } from 'lucide-react';
+import { Camera, ImagePlus, Loader2, ScanSearch, Upload, Check } from 'lucide-react';
 import { type ChangeEvent, useRef } from 'react';
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
 
 export function PhotoPicker({ busy, isImporting, isScanning, onChange, onScan, preview }: Props) {
   const input = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
 
   return (
     <section id="scanner" aria-label="Importer une photo de carte" className="relative flex scroll-mt-20 flex-col gap-5">
@@ -34,7 +35,12 @@ export function PhotoPicker({ busy, isImporting, isScanning, onChange, onScan, p
         </button>
       )}
 
-      {preview && <div className="mx-auto flex w-full max-w-lg flex-col gap-3 sm:flex-row">
+      <div className="mx-auto grid w-full max-w-lg gap-3 sm:grid-cols-2">
+        <button type="button" disabled={busy} onClick={() => cameraInput.current?.click()}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#8f2430]/25 bg-[#8f2430]/5 px-4 py-2 text-sm font-semibold text-[#8f2430] transition hover:bg-[#8f2430]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:opacity-50">
+          <Camera className="size-5 shrink-0" aria-hidden="true" />
+          {preview ? 'Reprendre une photo' : 'Prendre une photo'}
+        </button>
         <button
           className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:cursor-not-allowed disabled:opacity-50"
           disabled={busy}
@@ -42,24 +48,33 @@ export function PhotoPicker({ busy, isImporting, isScanning, onChange, onScan, p
           type="button"
         >
           {isImporting ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload className="size-4" aria-hidden="true" />}
-          {isImporting ? 'Import en cours…' : 'Changer la photo'}
+          {isImporting ? 'Import en cours…' : preview ? 'Changer la photo' : 'Importer une photo'}
         </button>
-        <button
-          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#8f2430] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#761d27] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:cursor-not-allowed disabled:bg-stone-400"
+        {preview && <button
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#8f2430] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#761d27] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f2430] disabled:cursor-not-allowed disabled:bg-stone-400 sm:col-span-2"
           disabled={busy}
           onClick={onScan}
           type="button"
         >
           {isScanning ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ScanSearch className="size-4" aria-hidden="true" />}
           {isScanning ? 'Analyse en cours…' : 'Analyser la carte'}
-        </button>
-      </div>}
+        </button>}
+      </div>
 
       <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-stone-500">
         {['Carte entière visible', 'Photo prise de face', 'Bonne luminosité'].map(tip => (
           <span key={tip} className="inline-flex items-center gap-1.5"><Check className="size-3.5 text-[#8f2430]/60" aria-hidden="true" />{tip}</span>
         ))}
       </div>
+      <input
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        disabled={busy}
+        onChange={onChange}
+        ref={cameraInput}
+        type="file"
+      />
       <input
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
