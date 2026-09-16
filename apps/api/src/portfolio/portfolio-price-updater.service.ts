@@ -4,7 +4,7 @@ import { Cron } from '@nestjs/schedule';
 import { CardmarketProvider } from '../pricing/providers/cardmarket.provider.js';
 import { PortfolioRepository } from './portfolio.repository.js';
 
-const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+const ONE_DAY = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PortfolioPriceUpdater implements OnApplicationBootstrap {
@@ -17,12 +17,12 @@ export class PortfolioPriceUpdater implements OnApplicationBootstrap {
   ) {}
 
   onApplicationBootstrap() {
-    const cutoff = new Date(Date.now() - ONE_WEEK).toISOString();
+    const cutoff = new Date(Date.now() - ONE_DAY).toISOString();
     return this.refresh(this.portfolio.productIds(cutoff));
   }
 
-  @Cron('0 3 * * 0', { timeZone: 'Europe/Brussels' })
-  refreshWeekly() {
+  @Cron('0 12 * * *', { timeZone: 'Europe/Brussels' })
+  refreshDaily() {
     return this.refresh(this.portfolio.productIds());
   }
 
@@ -35,7 +35,7 @@ export class PortfolioPriceUpdater implements OnApplicationBootstrap {
         this.portfolio.updatePrice(productId, trendPrice, updatedAt);
       }
     } catch {
-      this.logger.warn('La mise à jour hebdomadaire des cotes Cardmarket a échoué.');
+      this.logger.warn('La mise à jour quotidienne des cotes Cardmarket a échoué.');
     } finally {
       this.refreshing = false;
     }

@@ -6,7 +6,7 @@ Scanne tes cartes One Piece TCG, consulte leur cote Cardmarket et gère ta colle
 
 - Identification par photo avec Gemini et choix de la variante.
 - Recherche par référence directement dans les données Cardmarket, sans IA.
-- Collection personnelle avec quantités, tri et cotes actualisées chaque semaine.
+- Collection personnelle avec quantités, tri et cotes actualisées chaque jour à 12 h (Europe/Brussels).
 - Inscription avec pseudo et photo de profil facultative.
 - Confirmation avant suppression d’une carte.
 
