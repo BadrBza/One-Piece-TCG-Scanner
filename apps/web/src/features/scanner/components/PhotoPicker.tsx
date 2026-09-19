@@ -21,7 +21,7 @@ export function PhotoPicker({ busy, isImporting, isScanning, onChange, onScan, p
           <img alt="Aperçu de la carte importée" className={`max-h-[min(360px,45dvh)] w-full rounded-sm object-contain transition ${isScanning ? 'opacity-40' : ''}`} src={preview} />
           {isScanning && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center" role="status">
             <Loader2 className="size-9 loading-indicator text-[#8f2430]" aria-hidden="true" />
-            <p className="max-w-52 text-sm font-semibold text-stone-800">Lecture de la carte et comparaison des variantes…</p>
+            <p className="max-w-52 text-sm font-semibold text-stone-800">Lecture de la carte…</p>
           </div>}
         </div>
       ) : (

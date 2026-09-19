@@ -18,10 +18,59 @@ export class DatabaseService implements OnModuleDestroy {
     this.connection.exec('PRAGMA foreign_keys = ON');
     this.migrate();
     this.migrateProfile();
+    this.migrateAuthentication();
   }
 
   onModuleDestroy() {
     this.connection.close();
+  }
+
+  transaction<T>(run: () => T): T {
+    this.connection.exec('SAVEPOINT auth_operation');
+    try {
+      const result = run();
+      this.connection.exec('RELEASE auth_operation');
+      return result;
+    } catch (error) {
+      this.connection.exec('ROLLBACK TO auth_operation; RELEASE auth_operation');
+      throw error;
+    }
+  }
+
+  private migrateAuthentication() {
+    const { user_version: version } = this.connection.prepare('PRAGMA user_version').get() as { user_version: number };
+    if (version >= 4) return;
+    this.transaction(() => {
+      this.connection.exec(`
+        ALTER TABLE users ADD COLUMN email_verified_at TEXT;
+        ALTER TABLE users ADD COLUMN verification_exempt INTEGER NOT NULL DEFAULT 0;
+        UPDATE users SET verification_exempt = 1;
+        DELETE FROM sessions;
+        CREATE TABLE auth_sessions (
+          id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          expires_at INTEGER NOT NULL
+        );
+        CREATE TABLE access_tokens (
+          hash TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+          expires_at INTEGER NOT NULL
+        );
+        CREATE TABLE refresh_tokens (
+          hash TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+          used_at INTEGER
+        );
+        CREATE INDEX access_session ON access_tokens(session_id);
+        CREATE INDEX refresh_session ON refresh_tokens(session_id);
+        CREATE TABLE pending_registrations (
+          hash TEXT PRIMARY KEY, email TEXT NOT NULL, password_hash TEXT NOT NULL,
+          nickname TEXT NOT NULL, avatar TEXT, expires_at INTEGER NOT NULL,
+          code_hash TEXT, code_expires_at INTEGER NOT NULL DEFAULT 0,
+          attempts INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE verification_sends (email TEXT NOT NULL, sent_at INTEGER NOT NULL);
+        CREATE INDEX verification_sends_email ON verification_sends(email, sent_at);
+        PRAGMA user_version = 4;
+      `);
+    });
   }
 
   private migrateProfile() {

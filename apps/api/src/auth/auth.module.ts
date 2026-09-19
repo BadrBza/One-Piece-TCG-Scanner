@@ -1,14 +1,21 @@
+import { TokenSessionService } from './token-session.service.js';
+import { VerificationService } from './verification.service.js';
 import { Module } from '@nestjs/common';
 
 import { AuthController } from './auth.controller.js';
 import { AuthRepository } from './auth.repository.js';
 import { AuthService } from './auth.service.js';
 import { AuthGuard } from './auth.guard.js';
-import { AuthRateLimitGuard } from './auth-rate-limit.guard.js';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
+  imports: [ThrottlerModule.forRoot({
+    throttlers: [{ ttl: 15 * 60_000, limit: 20 }],
+    generateKey: (context, tracker) => `${tracker}:${context.getHandler().name === 'refresh' ? 'refresh' : 'credentials'}`,
+    errorMessage: 'Trop de tentatives. Réessaie dans 15 minutes.',
+  })],
   controllers: [AuthController],
-  providers: [AuthRepository, AuthService, AuthGuard, AuthRateLimitGuard],
+  providers: [TokenSessionService, VerificationService, AuthRepository, AuthService, AuthGuard, ThrottlerGuard],
   exports: [AuthService, AuthGuard],
 })
 export class AuthModule {}

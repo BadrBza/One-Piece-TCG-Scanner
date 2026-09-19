@@ -11,7 +11,7 @@ export class OriginGuard implements CanActivate {
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return true;
     const origin = request.headers.origin;
     const allowed = this.config.get<string>('FRONTEND_URL') || 'http://localhost:5173';
-    if (origin && origin !== allowed) throw new ForbiddenException('Origine de la requête refusée.');
+    if (origin !== allowed || request.headers['sec-fetch-site'] === 'cross-site') throw new ForbiddenException('Origine de la requête refusée.');
     return true;
   }
 }

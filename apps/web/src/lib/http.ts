@@ -15,11 +15,30 @@ export function errorMessage(reason: unknown, fallback: string) {
 const api = ky.create({
   prefix: API_URL,
   credentials: 'include',
+  retry: 0,
 });
 
+let refreshPending: Promise<void> | undefined;
+let refreshVersion = 0;
+
+function refreshSession() {
+  return refreshPending ??= api.post('auth/refresh').json().then(() => {
+    refreshVersion++;
+  }).finally(() => { refreshPending = undefined; });
+}
+
 export async function request<T>(path: string, options?: Options): Promise<T> {
+  const protectedRequest = !path.startsWith('/auth/') || path === '/auth/me';
+  const version = refreshVersion;
+  const send = () => api(path.replace(/^\//, ''), options).json<T>();
   try {
-    return await api(path.replace(/^\//, ''), options).json<T>();
+    try {
+      return await send();
+    } catch (reason) {
+      if (!protectedRequest || !(reason instanceof HTTPError) || reason.response.status !== 401) throw reason;
+      if (version === refreshVersion) await refreshSession();
+      return await send();
+    }
   } catch (reason) {
     if (reason instanceof TimeoutError) {
       const analysis = path === '/cards/scan' || path === '/cards/resolve';
@@ -28,7 +47,7 @@ export async function request<T>(path: string, options?: Options): Promise<T> {
         : 'Le serveur met trop de temps à répondre. Réessaie dans un instant.');
     }
     if (reason instanceof HTTPError) {
-      if (reason.response.status === 401 && !path.startsWith('/auth/')) {
+      if (reason.response.status === 401 && protectedRequest) {
         window.dispatchEvent(new Event('session-expired'));
       }
       const body = await reason.response.json().catch(() => null);

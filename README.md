@@ -7,7 +7,7 @@ Scanne tes cartes One Piece TCG, consulte leur cote Cardmarket et gère ta colle
 - Identification par photo avec Gemini et choix de la variante.
 - Recherche par référence directement dans les données Cardmarket, sans IA.
 - Collection personnelle avec quantités, tri et cotes actualisées chaque jour à 12 h (Europe/Brussels).
-- Inscription avec pseudo et photo de profil facultative.
+- Inscription avec vérification par e-mail, pseudo et photo de profil facultative.
 - Confirmation avant suppression d’une carte.
 
 ## Installation
@@ -25,7 +25,7 @@ Renseigne `GOOGLE_GENERATIVE_AI_API_KEY` dans `.env` pour utiliser le scan photo
 pnpm dev
 ```
 
-Ouvre <http://localhost:5173> et crée un compte. La recherche par référence fonctionne sans clé Gemini.
+Configure le SMTP pour recevoir le code d’inscription : [guide d’authentification](docs/authentication.md). Ouvre <http://localhost:5173>. La recherche par référence fonctionne sans clé Gemini.
 
 ## Commandes
 

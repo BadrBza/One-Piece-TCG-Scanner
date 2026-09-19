@@ -1,2 +1,6 @@
 packages:
   - "apps/*"
+
+# Share Fastify's cookie type augmentation with the Nest adapter.
+overrides:
+  "@nestjs/platform-fastify>fastify": "5.12.3"

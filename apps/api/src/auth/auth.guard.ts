@@ -12,7 +12,7 @@ export class AuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const user = this.auth.currentUser(request.headers.cookie);
+    const user = this.auth.currentUser(request.cookies.access_token);
     if (!user) throw new UnauthorizedException('Connecte-toi pour continuer.');
     request.user = user;
     return true;

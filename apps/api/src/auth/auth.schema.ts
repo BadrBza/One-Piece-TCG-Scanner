@@ -11,5 +11,17 @@ export const RegistrationSchema = CredentialsSchema.extend({
 });
 export type Registration = z.infer<typeof RegistrationSchema>;
 
+export const VerificationSchema = z.object({ code: z.string().regex(/^\d{6}$/) });
+
+export type SessionTokens = {
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresAt: number;
+  expiresAt: number;
+};
+
+export type AuthenticatedSession = { user: AuthUser; tokens: SessionTokens };
+export type PendingVerification = { status: 'verification_required'; email: string; emailSent: boolean };
+
 export type Credentials = z.infer<typeof CredentialsSchema>;
 export type AuthUser = { id: number; email: string; nickname: string | null; avatar: string | null };

@@ -1,3 +1,4 @@
+import cookie from '@fastify/cookie';
 import { NestFactory } from '@nestjs/core';
 import {
   FastifyAdapter,
@@ -13,6 +14,7 @@ const app = await NestFactory.create<NestFastifyApplication>(
   }),
 );
 
+await app.register(cookie);
 app.setGlobalPrefix('api');
 
 app.enableCors({

@@ -1,7 +1,8 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Camera, Loader2, UserRound } from 'lucide-react';
 
-import { authenticate, type AuthMode, type AuthUser } from '../features/auth/auth.api';
+import { authenticate, pendingVerification, type PendingVerification, type AuthMode, type AuthUser } from '../features/auth/auth.api';
+import { VerifyEmail } from '../features/auth/VerifyEmail';
 import { errorMessage } from '../lib/http';
 import { readFile } from '../lib/image-utils';
 
@@ -16,6 +17,15 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const busy = submitting || readingPhoto;
   const [error, setError] = useState<string | null>(null);
   const registering = mode === 'register';
+  const [pending, setPending] = useState<PendingVerification | null>(null);
+  const [checkingPending, setCheckingPending] = useState(true);
+  useEffect(() => {
+    let active = true;
+    pendingVerification().then(value => { if (active) setPending(value); })
+      .catch(() => {})
+      .finally(() => { if (active) setCheckingPending(false); });
+    return () => { active = false; };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,7 +33,10 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
     setBusy(true);
     setError(null);
     try {
-      onLogin(await authenticate(mode, { email, password, ...(registering ? { nickname: nickname.trim(), avatar } : {}) }));
+      const result = await authenticate(mode, { email, password, ...(registering ? { nickname: nickname.trim(), avatar } : {}) });
+      setPassword('');
+      if ('status' in result) { setPending(result); setAvatar(undefined); }
+      else onLogin(result);
     } catch (reason) {
       setError(errorMessage(reason, 'Connexion impossible.'));
     } finally {
@@ -54,6 +67,8 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           <img src="/hakiscan-logo.png" alt="" className="size-14 object-contain" />
           <span className="text-lg font-semibold tracking-tight">HakiScan</span>
         </div>
+        {checkingPending ? <p role="status" className="text-center">Chargement…</p> : pending ?
+          <VerifyEmail pending={pending} onLogin={onLogin} onBack={() => { setPending(null); setMode('login'); setError(null); }} /> :
         <section className="rounded-md border border-stone-300 border-t-[3px] border-t-[#8f2430] bg-[#fffefa] p-4 sm:p-8">
           <h1 className="text-2xl font-semibold tracking-tight">{registering ? 'Créer un compte' : 'Connexion'}</h1>
           <form className="mt-6 space-y-4" onSubmit={submit}>
@@ -113,7 +128,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
               {registering ? 'Se connecter' : 'Créer un compte'}
             </button>
           </p>
-        </section>
+        </section>}
       </div>
     </main>
   );
