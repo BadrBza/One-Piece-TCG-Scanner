@@ -61,11 +61,11 @@ test('normal scan uses exactly two AI calls and preserves the selected product p
 test('unreadable crop retries the full photograph once', async t => {
   const { settings, requests } = await setup(t, [{ cardNumber: 'UNKNOWN' }, { cardNumber: 'OP01-001' }]);
   const recognition = new RecognitionService(settings);
-  const card = await recognition.identify(photo, crop);
-  assert.equal(card.cardNumber, 'OP01-001');
+  const lecture = await recognition.identify(photo, crop);
+  assert.equal(lecture.carte.cardNumber, 'OP01-001');
   assert.equal(requests.length, 2);
   assert.equal(requests[1].contents[0].parts[0].inlineData.mimeType, 'image/png');
-  assert.equal(recognition.canRetryNumber(card, crop), false);
+  assert.equal(lecture.secoursUtilise, true);
 });
 
 test('a missing catalog entry retries the number but an unavailable catalog does not', async t => {
@@ -159,6 +159,6 @@ test('references are downloaded on every scan', async t => {
 
 test('optional card information does not hold up a match', async t => {
   const { service } = await setup(t);
-  service.getCardInfo = () => new Promise(() => {});
+  service.chargerInfosCarte = () => new Promise(() => {});
   assert.equal((await service.variants({ cardNumber: 'OP01-001' }, guide, photo)).selectedProductId, 2);
 });

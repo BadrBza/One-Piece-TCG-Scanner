@@ -10,7 +10,7 @@ import { generateText, Output } from 'ai';
 
 import { IDENTIFY_CARD_PROMPT } from './prompts/identify-card.prompt.js';
 import { READ_CARD_NUMBER_PROMPT } from './prompts/read-card-number.prompt.js';
-import { CardRecognitionSchema, type CardRecognition } from './card-recognition.schema.js';
+import { CardRecognitionSchema, creerCarte, type CardRecognition } from './card-recognition.schema.js';
 import { CardNumberSchema, type CardNumberConfirmation } from '../cards/scan-card.schema.js';
 import { isCardNumber, normalizeCardNumber } from './card-number.js';
 import { measureScan, recordUsage, scanTelemetry } from './scan-metrics.js';
@@ -18,67 +18,58 @@ import { withGeminiModel } from './gemini-model.js';
 import { errorCategory, throwReadableError } from './recognition-errors.js';
 import { decodeImage, type DecodedImage } from '../common/image-utils.js';
 
+export type LectureCarte = { carte: CardRecognition; photo: DecodedImage; secoursUtilise: boolean };
+
 @Injectable()
 export class RecognitionService {
   private readonly logger = new Logger(RecognitionService.name);
 
   constructor(private readonly config: ConfigService) {}
 
-  private readonly fallbackReads = new WeakSet<CardRecognition>();
-
-  canRetryNumber(card: CardRecognition) {
-    return this.optimized && !this.fallbackReads.has(card);
-  }
-
   get optimized() { return this.config.get<string>('SCAN_OPTIMIZED') !== 'false'; }
 
-  async readNumberOnly(image: string): Promise<CardRecognition> {
-    return this.identifyNumber(image, undefined, true);
+  async identify(image: string, numberImage?: string): Promise<LectureCarte | CardNumberConfirmation> {
+    const { photo, crop } = this.preparerImages(image, numberImage);
+    return this.optimized ? this.identifierNumero(photo, crop) : this.identifierAncienParcours(photo, crop);
   }
 
-  private prepareImages(image: string, numberImage?: string) {
-    const photo = decodeImage(image, 7 * 1024 * 1024, 'Importe une photo JPG, PNG ou WebP de 7 Mo maximum.');
-    const crop = numberImage === undefined ? undefined : decodeImage(numberImage, 3 * 1024 * 1024, 'Le gros plan du numéro est invalide ou trop volumineux.');
+  readNumberOnly(photo: DecodedImage) {
+    this.verifierCle();
+    return this.identifierNumero(photo, undefined, true);
+  }
+
+  private verifierCle() {
     if (!this.config.get<string>('GOOGLE_GENERATIVE_AI_API_KEY')?.trim()) {
       throw new ServiceUnavailableException('La clé Gemini est absente. Configure GOOGLE_GENERATIVE_AI_API_KEY dans le fichier .env du serveur.');
     }
+  }
+
+  private preparerImages(image: string, numberImage?: string) {
+    const photo = decodeImage(image, 7 * 1024 * 1024, 'Importe une photo JPG, PNG ou WebP de 7 Mo maximum.');
+    const crop = numberImage === undefined ? undefined : decodeImage(numberImage, 3 * 1024 * 1024, 'Le gros plan du numéro est invalide ou trop volumineux.');
+    this.verifierCle();
     return { photo, crop };
   }
 
-  private async identifyNumber(image: string, numberImage?: string, fallbackOnly = false): Promise<CardRecognition> {
-    const { photo, crop } = this.prepareImages(image, numberImage);
-    let number: string;
-    let usedFallback = fallbackOnly;
-    try {
-      number = normalizeCardNumber(await this.readCardNumber(fallbackOnly ? photo : crop ?? photo, fallbackOnly ? 'fallback' : 'fast'));
-      if (!isCardNumber(number) && !usedFallback) {
-        usedFallback = true;
-        number = normalizeCardNumber(await this.readCardNumber(photo, 'fallback'));
-      }
-    } catch (error) { throwReadableError(error, this.logger); }
-    if (!isCardNumber(number)) throw new UnprocessableEntityException('Le numéro de la carte est illisible. Reprends la photo ou saisis le numéro manuellement.');
-    const card: CardRecognition = { cardNumber: number, name: number, language: 'UNKNOWN', rarity: null, variant: 'unknown', confidence: 0 };
-    if (usedFallback) this.fallbackReads.add(card);
-    return card;
+  private async identifierNumero(photo: DecodedImage, crop?: DecodedImage, fallbackOnly = false): Promise<LectureCarte> {
+    const lectures = fallbackOnly ? ['fallback'] as const : ['fast', 'fallback'] as const;
+    for (const mode of lectures) {
+      const numero = normalizeCardNumber(await this.lireNumero(mode === 'fast' ? crop ?? photo : photo, mode)
+        .catch(error => throwReadableError(error, this.logger)));
+      if (!isCardNumber(numero)) continue;
+      return { carte: creerCarte(numero), photo, secoursUtilise: mode === 'fallback' };
+    }
+    throw new UnprocessableEntityException('Le numéro de la carte est illisible. Reprends la photo ou saisis le numéro manuellement.');
   }
 
-  async identify(image: string, numberImage?: string): Promise<CardRecognition | CardNumberConfirmation> {
-    if (this.optimized) return this.identifyNumber(image, numberImage);
-    const { photo, crop } = this.prepareImages(image, numberImage);
-
-    let card: CardRecognition;
-    let readNumber: string;
-    try {
-      [card, readNumber] = await Promise.all([
-        this.askGemini(photo, crop),
-        this.readCardNumber(crop ?? photo).catch(error => {
-          this.logger.warn(`Dedicated card-number reading failed: ${errorCategory(error)}`);
-          return 'UNKNOWN';
-        }),
-      ]);
-    } catch (error) {
-      throwReadableError(error, this.logger);
-    }
+  private async identifierAncienParcours(photo: DecodedImage, crop?: DecodedImage): Promise<LectureCarte | CardNumberConfirmation> {
+    const [card, readNumber] = await Promise.all([
+      this.identifierAvecGemini(photo, crop),
+      this.lireNumero(crop ?? photo).catch(error => {
+        this.logger.warn(`Dedicated card-number reading failed: ${errorCategory(error)}`);
+        return 'UNKNOWN';
+      }),
+    ]).catch(error => throwReadableError(error, this.logger));
 
     const identifiedNumber = normalizeCardNumber(card.cardNumber);
     const dedicatedNumber = normalizeCardNumber(readNumber);
@@ -97,10 +88,10 @@ export class RecognitionService {
       };
     }
 
-    return { ...card, cardNumber: dedicatedIsValid ? dedicatedNumber : identifiedNumber };
+    return { carte: { ...card, cardNumber: dedicatedIsValid ? dedicatedNumber : identifiedNumber }, photo, secoursUtilise: false };
   }
 
-  private async askGemini(photo: DecodedImage, crop?: DecodedImage) {
+  private async identifierAvecGemini(photo: DecodedImage, crop?: DecodedImage) {
     const response = await measureScan('identify', () => withGeminiModel(this.config, model => generateText({
       model,
       telemetry: scanTelemetry('identify'),
@@ -128,7 +119,7 @@ export class RecognitionService {
     return response.output;
   }
 
-  private async readCardNumber(image: DecodedImage, mode: 'fast' | 'fallback' | 'legacy' = 'legacy') {
+  private async lireNumero(image: DecodedImage, mode: 'fast' | 'fallback' | 'legacy' = 'legacy') {
     const abortSignal = AbortSignal.timeout(45000);
     const stage = mode === 'legacy' ? 'number' : `number-${mode}`;
     const reasoning = mode === 'fast' && this.config.get<string>('SCAN_NUMBER_REASONING') !== 'low' ? 'minimal' : 'low';

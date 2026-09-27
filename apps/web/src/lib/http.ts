@@ -32,28 +32,30 @@ export async function request<T>(path: string, options?: Options): Promise<T> {
   const version = refreshVersion;
   const send = () => api(path.replace(/^\//, ''), options).json<T>();
   try {
-    try {
-      return await send();
-    } catch (reason) {
+    return await send().catch(async reason => {
       if (!protectedRequest || !(reason instanceof HTTPError) || reason.response.status !== 401) throw reason;
       if (version === refreshVersion) await refreshSession();
-      return await send();
-    }
+      return send();
+    });
   } catch (reason) {
-    if (reason instanceof TimeoutError) {
-      const analysis = path === '/cards/scan' || path === '/cards/resolve';
-      throw new Error(analysis
-        ? 'L’analyse prend trop de temps. Le serveur peut encore la terminer. Patiente avant de relancer ou utilise la recherche par référence.'
-        : 'Le serveur met trop de temps à répondre. Réessaie dans un instant.');
-    }
-    if (reason instanceof HTTPError) {
-      if (reason.response.status === 401 && protectedRequest) {
-        window.dispatchEvent(new Event('session-expired'));
-      }
-      const body = await reason.response.json().catch(() => null);
-      const message = typeof body?.message === 'string' ? body.message : 'La demande n’a pas pu être traitée.';
-      throw new ApiError(message, reason.response.status);
-    }
-    throw new Error('Le serveur est inaccessible. Réessaie dans un instant.');
+    return traiterErreur(reason, path, protectedRequest);
   }
+}
+
+async function traiterErreur(reason: unknown, path: string, protectedRequest: boolean): Promise<never> {
+  if (reason instanceof TimeoutError) {
+    const analysis = path === '/cards/scan' || path === '/cards/resolve';
+    throw new Error(analysis
+      ? 'L’analyse prend trop de temps. Le serveur peut encore la terminer. Patiente avant de relancer ou utilise la recherche par référence.'
+      : 'Le serveur met trop de temps à répondre. Réessaie dans un instant.');
+  }
+  if (reason instanceof HTTPError) {
+    if (reason.response.status === 401 && protectedRequest) {
+      window.dispatchEvent(new Event('session-expired'));
+    }
+    const body = await reason.response.json().catch(() => null);
+    const message = typeof body?.message === 'string' ? body.message : 'La demande n’a pas pu être traitée.';
+    throw new ApiError(message, reason.response.status);
+  }
+  throw new Error('Le serveur est inaccessible. Réessaie dans un instant.');
 }

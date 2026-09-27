@@ -50,30 +50,24 @@ export function isNumberConfirmation(result: ScanCardResult): result is NumberCo
   return 'status' in result;
 }
 
-export async function lookupCard(number: string): Promise<RecognizedScanResult> {
-  return request(`/cards/lookup?number=${encodeURIComponent(number.trim())}`, {
+export function lookupCard(number: string) {
+  return request<RecognizedScanResult>(`/cards/lookup?number=${encodeURIComponent(number.trim())}`, {
     timeout: 30_000,
-    retry: 0,
   });
 }
 
-export async function resolveCard(number: string, image: string): Promise<RecognizedScanResult> {
-  return request('/cards/resolve', {
+export function resolveCard(number: string, image: string) {
+  return request<RecognizedScanResult>('/cards/resolve', {
     method: 'POST',
     timeout: ANALYSIS_TIMEOUT,
-    retry: 0,
     json: { cardNumber: number, image },
   });
 }
 
-export async function scanCard(
-  image: string,
-  numberImage?: string,
-): Promise<ScanCardResult> {
-  return request('/cards/scan', {
+export function scanCard(image: string, numberImage?: string) {
+  return request<ScanCardResult>('/cards/scan', {
     method: 'POST',
     timeout: ANALYSIS_TIMEOUT,
-    retry: 0,
     json: { image, numberImage },
   });
 }

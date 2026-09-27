@@ -8,13 +8,13 @@ import type { AuthenticatedSession, Credentials } from './auth.schema.js';
 export class AuthService {
   constructor(private readonly users: AuthRepository, private readonly sessions: TokenSessionService) {}
 
-  async login(credentials: Credentials): Promise<AuthenticatedSession> {
-    const stored = this.users.findUserByEmail(credentials.email);
-    if (!stored || !await passwordMatches(credentials.password, stored.password_hash)
-      || !(stored.email_verified_at || stored.verification_exempt)) {
+  async login(identifiants: Credentials): Promise<AuthenticatedSession> {
+    const compte = this.users.findUserByEmail(identifiants.email);
+    if (!compte || !await passwordMatches(identifiants.password, compte.password_hash)
+      || !(compte.email_verified_at || compte.verification_exempt)) {
       throw new UnauthorizedException('Adresse e-mail ou mot de passe incorrect.');
     }
-    const user = { id: stored.id, email: stored.email, nickname: stored.nickname, avatar: stored.avatar };
+    const user = { id: compte.id, email: compte.email, nickname: compte.nickname, avatar: compte.avatar };
     return { user, tokens: this.sessions.create(user.id) };
   }
 

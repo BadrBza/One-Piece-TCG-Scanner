@@ -9,8 +9,8 @@ import { ScanResult } from './components/ScanResult';
 export function Scanner() {
   const {
     mode, cardNumber, setCardNumber, preview, result, confirmation, resultSource,
-    error, isImporting, isScanning, isLookingUp, busy, selectMode, importPhoto,
-    recognizeCard, confirmCardNumber, findCard,
+    error, isImporting, isScanning, isLookingUp, busy, choisirMode, importerPhoto,
+    scannerCarte, confirmerNumero, chercherCarte,
   } = useScanner();
 
   return (
@@ -28,18 +28,18 @@ export function Scanner() {
             <h2 className="font-semibold text-stone-900">Trouver ma carte</h2>
           </div>
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1" role="group" aria-label="Méthode de recherche">
-            <ModeButton active={mode === 'photo'} disabled={busy} icon={<Camera className="size-4" aria-hidden="true" />} onClick={() => selectMode('photo')}>Photo</ModeButton>
-            <ModeButton active={mode === 'manual'} disabled={busy} icon={<Keyboard className="size-4" aria-hidden="true" />} onClick={() => selectMode('manual')}>Référence</ModeButton>
+            <ModeButton active={mode === 'photo'} disabled={busy} icon={<Camera className="size-4" aria-hidden="true" />} onClick={() => choisirMode('photo')}>Photo</ModeButton>
+            <ModeButton active={mode === 'manual'} disabled={busy} icon={<Keyboard className="size-4" aria-hidden="true" />} onClick={() => choisirMode('manual')}>Référence</ModeButton>
           </div>
         </div>
         <div aria-busy={busy} className="p-4 sm:p-8">
           {mode === 'photo' ? (
             <PhotoPicker busy={busy} isImporting={isImporting} isScanning={isScanning}
-              onChange={importPhoto} onScan={() => void recognizeCard()} preview={preview} />
+              onChange={importerPhoto} onScan={() => void scannerCarte()} preview={preview} />
           ) : (
             <div className="mx-auto max-w-xl py-4 sm:py-8">
               <ManualLookup cardNumber={cardNumber} disabled={busy} isLoading={isLookingUp}
-                onChange={setCardNumber} onSubmit={() => void findCard()} />
+                onChange={setCardNumber} onSubmit={() => void chercherCarte()} />
             </div>
           )}
           {error && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
@@ -48,7 +48,7 @@ export function Scanner() {
             <p className="mt-1 text-sm text-amber-800">Choisis la référence visible sur ta photo pour continuer.</p>
             <div className="mt-4 flex flex-wrap gap-3">
               {confirmation.numberCandidates.map(number => <button key={number} type="button" disabled={busy}
-                onClick={() => void confirmCardNumber(number)}
+                onClick={() => void confirmerNumero(number)}
                 className="min-h-11 rounded-lg border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 disabled:opacity-50">{number}</button>)}
             </div>
             {isLookingUp && <p className="mt-3 flex items-center gap-2 text-sm text-amber-900"><Loader2 className="size-4 loading-indicator" aria-hidden="true" /> Recherche en cours…</p>}

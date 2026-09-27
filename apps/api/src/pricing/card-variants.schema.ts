@@ -21,7 +21,7 @@ export const CompactVariantSchema = z.object({
 });
 
 export const OptcgCardsSchema = z.array(z.object({
-  rarity: z.enum(['C', 'UC', 'R', 'SR', 'SEC', 'L', 'P']),
+  rarity: z.enum(['C', 'UC', 'R', 'SR', 'SEC', 'L', 'P',]),
   set_name: z.string().min(1),
 }));
 

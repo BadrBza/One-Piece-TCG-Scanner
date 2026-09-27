@@ -9,7 +9,7 @@ export function setPendingCookie(reply: FastifyReply, token: string, expiresAt: 
   reply.setCookie('pending_registration', token, { ...options('/api/auth'), expires: new Date(expiresAt) });
 }
 
-export function setAuthCookies(reply: FastifyReply, tokens: SessionTokens): void {
+export function setAuthCookies(reply: FastifyReply, tokens: SessionTokens) {
   reply.setCookie('access_token', tokens.accessToken, { ...options('/api'), expires: new Date(tokens.accessExpiresAt) });
   reply.setCookie('refresh_token', tokens.refreshToken, { ...options('/api/auth'), expires: new Date(tokens.expiresAt) });
   reply.clearCookie('pending_registration', options('/api/auth'));

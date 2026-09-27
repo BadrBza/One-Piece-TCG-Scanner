@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { valider } from '../common/validation.js';
 import { CardsService } from './cards.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { isCardNumber, normalizeCardNumber } from '../recognition/card-number.js';
@@ -33,17 +34,13 @@ export class CardsController {
 
   @Post('scan')
   scan(@Body() body: unknown) {
-    const request = ScanCardSchema.safeParse(body);
-    if (!request.success) {
-      throw new BadRequestException('Importe une photo valide pour lancer le scan.');
-    }
-    return this.cardsService.scan(request.data.image, request.data.numberImage);
+    const { image, numberImage } = valider(ScanCardSchema, body, 'Importe une photo valide pour lancer le scan.');
+    return this.cardsService.scan(image, numberImage);
   }
 
   @Post('resolve')
   resolve(@Body() body: unknown) {
-    const request = ResolveCardSchema.safeParse(body);
-    if (!request.success) throw new BadRequestException('Le numéro ou la photo est invalide.');
-    return this.cardsService.resolve(request.data.cardNumber, request.data.image);
+    const { cardNumber, image } = valider(ResolveCardSchema, body, 'Le numéro ou la photo est invalide.');
+    return this.cardsService.resolve(cardNumber, image);
   }
 }

@@ -19,17 +19,17 @@ export type PortfolioCard = NewPortfolioCard & {
   priceUpdatedAt?: string;
 };
 
-export async function getPortfolio(): Promise<PortfolioCard[]> {
-  return request('/portfolio');
+export function getPortfolio() {
+  return request<PortfolioCard[]>('/portfolio');
 }
 
-export async function addPortfolioCard(card: NewPortfolioCard): Promise<PortfolioCard> {
-  return request('/portfolio', {
+export function addPortfolioCard(card: NewPortfolioCard) {
+  return request<PortfolioCard>('/portfolio', {
     method: 'POST',
     json: card,
   });
 }
 
-export async function removePortfolioCard(id: number): Promise<void> {
+export async function removePortfolioCard(id: number) {
   await request(`/portfolio/${id}`, { method: 'DELETE' });
 }

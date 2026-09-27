@@ -1,5 +1,6 @@
-import { BadRequestException, Body, Controller, Delete, Get, Header, NotFoundException, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, NotFoundException, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
 
+import { valider } from '../common/validation.js';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
 import { PortfolioRepository } from './portfolio.repository.js';
 import { AddPortfolioCardSchema } from './portfolio.schema.js';
@@ -17,9 +18,8 @@ export class PortfolioController {
 
   @Post()
   add(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
-    const card = AddPortfolioCardSchema.safeParse(body);
-    if (!card.success) throw new BadRequestException('Les informations de la carte sont invalides.');
-    return this.portfolio.add(request.user.id, card.data);
+    const carte = valider(AddPortfolioCardSchema, body, 'Les informations de la carte sont invalides.');
+    return this.portfolio.add(request.user.id, carte);
   }
 
   @Delete(':id')

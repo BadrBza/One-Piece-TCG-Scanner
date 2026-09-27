@@ -5,9 +5,9 @@ import type { CardRecognition, PriceResult } from '../scanner.api';
 import { languageLabels } from '../labels';
 import { AddToPortfolio } from '../../portfolio/components/AddToPortfolio';
 
-type Product = NonNullable<PriceResult['products']>[number];
+import { euros } from '../../../lib/format';
 
-const euros = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
+type Product = NonNullable<PriceResult['products']>[number];
 
 function title(product: Product) {
   const variant = product.variantLabel && product.variantLabel !== 'Non déterminée' ? ` · ${product.variantLabel}` : '';

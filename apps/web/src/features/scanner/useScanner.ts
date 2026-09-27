@@ -5,6 +5,7 @@ import { errorMessage } from '../../lib/http';
 import { cardNumberCrop, readFile, validateImageFile } from '../../lib/image-utils';
 
 type ScanMode = 'photo' | 'manual';
+type Operation = 'repos' | 'import' | 'scan' | 'recherche';
 
 export function useScanner() {
   const [mode, setMode] = useState<ScanMode>('photo');
@@ -14,28 +15,27 @@ export function useScanner() {
   const [confirmation, setConfirmation] = useState<NumberConfirmationResult | null>(null);
   const [resultSource, setResultSource] = useState<'photo' | 'manual'>('photo');
   const [error, setError] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [operation, setOperation] = useState<Operation>('repos');
+  const busy = operation !== 'repos';
 
-  const busy = isImporting || isScanning || isLookingUp;
-
-  function selectMode(nextMode: ScanMode) {
-    if (busy || nextMode === mode) return;
-    setMode(nextMode);
+  function effacerResultat() {
     setError(null);
     setResult(null);
     setConfirmation(null);
   }
 
-  async function importPhoto(event: ChangeEvent<HTMLInputElement>) {
+  function choisirMode(nextMode: ScanMode) {
+    if (busy || nextMode === mode) return;
+    setMode(nextMode);
+    effacerResultat();
+  }
+
+  async function importerPhoto(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file) return;
+    if (!file || busy) return;
 
-    setError(null);
-    setResult(null);
-    setConfirmation(null);
+    effacerResultat();
 
     const validationError = validateImageFile(file);
     if (validationError) {
@@ -43,42 +43,41 @@ export function useScanner() {
       return;
     }
 
-    setIsImporting(true);
+    setOperation('import');
     try {
       setPreview(await readFile(file));
     } catch (reason) {
       setError(errorMessage(reason, 'Impossible de lire cette photo. Essaie avec une autre image.'));
     } finally {
-      setIsImporting(false);
+      setOperation('repos');
     }
   }
 
-  async function recognizeCard() {
+  async function scannerCarte() {
     if (!preview || busy) return;
 
-    setIsScanning(true);
-    setConfirmation(null);
-    setError(null);
-    setResult(null);
+    setOperation('scan');
+    effacerResultat();
     try {
-      const scanResult = await scanCard(preview, await cardNumberCrop(preview));
+      const grosPlan = await cardNumberCrop(preview);
+      const scanResult = await scanCard(preview, grosPlan);
       setResultSource('photo');
       if (isNumberConfirmation(scanResult)) {
         setConfirmation(scanResult);
-      } else {
-        setResult(scanResult);
-        setCardNumber(scanResult.card.cardNumber);
+        return;
       }
+      setResult(scanResult);
+      setCardNumber(scanResult.card.cardNumber);
     } catch (reason) {
       setError(errorMessage(reason, 'Impossible de scanner cette carte pour le moment.'));
     } finally {
-      setIsScanning(false);
+      setOperation('repos');
     }
   }
 
-  async function confirmCardNumber(number: string) {
+  async function confirmerNumero(number: string) {
     if (!confirmation || !preview || busy) return;
-    setIsLookingUp(true);
+    setOperation('recherche');
     setError(null);
     try {
       const lookup = await resolveCard(number, preview);
@@ -89,17 +88,15 @@ export function useScanner() {
     } catch (reason) {
       setError(errorMessage(reason, 'Impossible de rechercher cette carte.'));
     } finally {
-      setIsLookingUp(false);
+      setOperation('repos');
     }
   }
 
-  async function findCard() {
+  async function chercherCarte() {
     if (!cardNumber.trim() || busy) return;
 
-    setIsLookingUp(true);
-    setError(null);
-    setResult(null);
-    setConfirmation(null);
+    setOperation('recherche');
+    effacerResultat();
     try {
       const lookup = await lookupCard(cardNumber);
       setResult(lookup);
@@ -108,13 +105,14 @@ export function useScanner() {
     } catch (reason) {
       setError(errorMessage(reason, 'Recherche impossible.'));
     } finally {
-      setIsLookingUp(false);
+      setOperation('repos');
     }
   }
 
   return {
     mode, cardNumber, setCardNumber, preview, result, confirmation, resultSource,
-    error, isImporting, isScanning, isLookingUp, busy, selectMode, importPhoto,
-    recognizeCard, confirmCardNumber, findCard,
+    error, isImporting: operation === 'import', isScanning: operation === 'scan',
+    isLookingUp: operation === 'recherche', busy, choisirMode, importerPhoto,
+    scannerCarte, confirmerNumero, chercherCarte,
   };
 }

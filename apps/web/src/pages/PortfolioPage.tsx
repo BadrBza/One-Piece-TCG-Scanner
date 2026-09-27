@@ -4,7 +4,7 @@ import { ArrowDownUp, Layers, Plus } from 'lucide-react';
 import { usePortfolio } from '../features/portfolio/usePortfolio';
 import { PortfolioCardItem } from '../features/portfolio/components/PortfolioCardItem';
 
-const euros = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
+import { euros } from '../lib/format';
 type SortOrder = 'price-desc' | 'price-asc' | 'recent' | 'name';
 
 export function PortfolioPage() {

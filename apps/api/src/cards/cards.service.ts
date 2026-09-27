@@ -2,84 +2,75 @@ import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 
 import { measureScan, scanContext } from '../recognition/scan-metrics.js';
 import { CardmarketProvider } from '../pricing/providers/cardmarket.provider.js';
-import { RecognitionService } from '../recognition/recognition.service.js';
+import { RecognitionService, type LectureCarte } from '../recognition/recognition.service.js';
 import { CardVariantsService } from '../pricing/card-variants.service.js';
-import type { CardRecognition } from '../recognition/card-recognition.schema.js';
-import type { PriceResult } from '../pricing/price-result.js';
-import type { CardNumberConfirmation } from './scan-card.schema.js';
+import { creerCarte, type CardRecognition } from '../recognition/card-recognition.schema.js';
+import { illustrerProduit, type PriceResult } from '../pricing/price-result.js';
 
 @Injectable()
 export class CardsService {
-
   constructor(
     private readonly recognitionService: RecognitionService,
     private readonly cardmarket: CardmarketProvider,
     private readonly cardVariants: CardVariantsService,
   ) {}
 
-  async lookup(cardNumber: string) {
-    const card = this.createCard(cardNumber);
-    const guide = await this.cardmarket.getPrice(card);
-    const products = guide.products?.map((product, index) => ({
-      ...product,
-      version: index + 1,
-      imageUrl: `https://cardmarketapi.com/cards/${product.id}/image`,
-    }));
-    card.name = products?.[0]?.name ?? cardNumber;
-    return { card, prices: { cardmarket: { ...guide, products } } };
+  async lookup(numero: string) {
+    const carte = creerCarte(numero);
+    const catalogue = await this.cardmarket.getPrice(carte);
+    const produits = catalogue.products?.map(illustrerProduit);
+    return {
+      card: { ...carte, name: produits?.[0]?.name ?? numero },
+      prices: { cardmarket: { ...catalogue, products: produits } },
+    };
   }
 
-  async resolve(cardNumber: string, photo: string) {
-    const card = this.createCard(cardNumber);
-    const guide = await this.cardmarket.getPrice(card);
-    const prices = { cardmarket: await this.cardVariants.variants(card, guide, photo) };
-    this.fillCard(card, prices.cardmarket);
-    const rarity = prices.cardmarket.products?.find(product => product.rarity && product.rarity !== 'Non déterminée')?.rarity;
-    card.rarity = rarity ?? null;
-    return { card, prices };
+  async resolve(numero: string, photo: string) {
+    const carte = creerCarte(numero);
+    const catalogue = await this.cardmarket.getPrice(carte);
+    const cote = await this.cardVariants.variants(carte, catalogue, photo);
+    const rarete = cote.products?.find(produit => produit.rarity && produit.rarity !== 'Non déterminée')?.rarity;
+    return { card: { ...this.completerCarte(carte, cote), rarity: rarete ?? null }, prices: { cardmarket: cote } };
   }
 
-  async scan(
-    image: string,
-    numberImage?: string,
-  ) {
+  scan(image: string, numberImage?: string) {
     return scanContext(async () => {
-      const recognition = await this.recognitionService.identify(image, numberImage);
-      if (isNumberConfirmation(recognition)) return recognition;
-      let card = recognition;
-      let guide = await measureScan('catalog', () => this.cardmarket.getPrice(card));
-      if (guide.products?.length === 0 && this.recognitionService.canRetryNumber(card)) {
-        card = await this.recognitionService.readNumberOnly(image);
-        guide = await measureScan('catalog', () => this.cardmarket.getPrice(card));
-      }
-      if (guide.products?.length === 0 && this.recognitionService.optimized) {
+      const lecture = await this.recognitionService.identify(image, numberImage);
+      if ('status' in lecture) return lecture;
+
+      const { carte, catalogue } = await this.rechercherApresLecture(lecture);
+      if (catalogue.products?.length === 0 && this.recognitionService.optimized) {
         throw new UnprocessableEntityException('Aucune fiche trouvée pour ce numéro. Vérifie-le ou saisis-le manuellement.');
       }
-      const prices = { cardmarket: await this.cardVariants.variants(card, guide, image) };
-      if (this.recognitionService.optimized) this.fillCard(card, prices.cardmarket);
-      return { card, prices };
+      const cote = await this.cardVariants.variants(carte, catalogue, lecture.photo);
+      return {
+        card: this.recognitionService.optimized ? this.completerCarte(carte, cote) : carte,
+        prices: { cardmarket: cote },
+      };
     });
   }
 
-  private createCard(cardNumber: string): CardRecognition {
-    return { cardNumber, name: cardNumber, language: 'UNKNOWN', rarity: null, variant: 'unknown', confidence: 0 };
+  private async rechercherApresLecture({ carte, photo, secoursUtilise }: LectureCarte) {
+    const catalogue = await measureScan('catalog', () => this.cardmarket.getPrice(carte));
+    if (catalogue.products?.length !== 0 || secoursUtilise || !this.recognitionService.optimized) {
+      return { carte, catalogue };
+    }
+    const { carte: secours } = await this.recognitionService.readNumberOnly(photo);
+    return { carte: secours, catalogue: await measureScan('catalog', () => this.cardmarket.getPrice(secours)) };
   }
 
-  private fillCard(card: CardRecognition, price: PriceResult) {
-    const selected = price.products?.find(product => product.id === price.selectedProductId);
-    const product = selected ?? price.products?.[0];
-    card.name = product?.name ?? card.cardNumber;
-    card.rarity = product?.rarity && product.rarity !== 'Non déterminée' ? product.rarity : null;
-    card.confidence = selected ? price.matchConfidence ?? 0 : 0;
-    const languages: Record<string, CardRecognition['language']> = { Anglais: 'EN', Japonais: 'JP', Français: 'FR', Chinois: 'CN', Coréen: 'KR' };
-    const variants: Record<string, CardRecognition['variant']> = { Standard: 'regular', Parallèle: 'parallel', 'Illustration alternative': 'alternate_art', Manga: 'manga', Promotionnelle: 'promo' };
-    card.language = selected ? languages[selected.languageLabel ?? ''] ?? 'UNKNOWN' : 'UNKNOWN';
-    card.variant = selected ? variants[selected.variantLabel ?? ''] ?? 'unknown' : 'unknown';
+  private completerCarte(carte: CardRecognition, cote: PriceResult): CardRecognition {
+    const selection = cote.products?.find(produit => produit.id === cote.selectedProductId);
+    const produit = selection ?? cote.products?.[0];
+    const langues: Record<string, CardRecognition['language']> = { Anglais: 'EN', Japonais: 'JP', Français: 'FR', Chinois: 'CN', Coréen: 'KR' };
+    const variantes: Record<string, CardRecognition['variant']> = { Standard: 'regular', Parallèle: 'parallel', 'Illustration alternative': 'alternate_art', Manga: 'manga', Promotionnelle: 'promo' };
+    return {
+      ...carte,
+      name: produit?.name ?? carte.cardNumber,
+      rarity: produit?.rarity && produit.rarity !== 'Non déterminée' ? produit.rarity : null,
+      confidence: selection ? cote.matchConfidence ?? 0 : 0,
+      language: selection ? langues[selection.languageLabel ?? ''] ?? 'UNKNOWN' : 'UNKNOWN',
+      variant: selection ? variantes[selection.variantLabel ?? ''] ?? 'unknown' : 'unknown',
+    };
   }
-
-
-}
-
-function isNumberConfirmation(result: CardRecognition | CardNumberConfirmation): result is CardNumberConfirmation {
-  return 'status' in result;
 }

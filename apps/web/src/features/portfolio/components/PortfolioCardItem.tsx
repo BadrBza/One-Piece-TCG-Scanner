@@ -5,7 +5,7 @@ import type { PortfolioCard } from '../portfolio.api';
 import { errorMessage } from '../../../lib/http';
 import { RemoveCardDialog } from './RemoveCardDialog';
 
-const euros = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
+import { euros } from '../../../lib/format';
 const dates = new Intl.DateTimeFormat('fr-BE', { dateStyle: 'medium' });
 
 export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onRemove: (id: number) => Promise<void> }) {

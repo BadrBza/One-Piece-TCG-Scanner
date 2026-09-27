@@ -28,3 +28,7 @@ export const CardRecognitionSchema = z.object({
 
 export type CardRecognition =
   z.infer<typeof CardRecognitionSchema>;
+
+export function creerCarte(cardNumber: string): CardRecognition {
+  return { cardNumber, name: cardNumber, language: 'UNKNOWN', rarity: null, variant: 'unknown', confidence: 0 };
+}

@@ -35,8 +35,12 @@ export function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
     try {
       const result = await authenticate(mode, { email, password, ...(registering ? { nickname: nickname.trim(), avatar } : {}) });
       setPassword('');
-      if ('status' in result) { setPending(result); setAvatar(undefined); }
-      else onLogin(result);
+      if ('status' in result) {
+        setPending(result);
+        setAvatar(undefined);
+        return;
+      }
+      onLogin(result);
     } catch (reason) {
       setError(errorMessage(reason, 'Connexion impossible.'));
     } finally {

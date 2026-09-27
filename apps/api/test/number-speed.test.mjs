@@ -30,7 +30,7 @@ function assertAttempt(call, model, reasoning, image) {
 
 test('fast number reading uses Lite/minimal independently of general and comparison models', async t => {
   const { recognition, calls } = setup(t, [() => reply(' op01-001 ')], { GEMINI_MODEL: 'another-model', GEMINI_VARIANT_MODEL: 'another-variant-model' });
-  assert.equal((await recognition.identify(photo, crop)).cardNumber, 'OP01-001');
+  assert.equal((await recognition.identify(photo, crop)).carte.cardNumber, 'OP01-001');
   assert.equal(calls.length, 1);
   assertAttempt(calls[0], 'gemini-3.5-flash-lite', 'minimal', crop);
 });
@@ -38,9 +38,9 @@ test('fast number reading uses Lite/minimal independently of general and compari
 test('both UNKNOWN and invalid format use one Flash/low full-photo fallback', async t => {
   for (const number of ['UNKNOWN', 'OP01-0010']) await t.test(number, async t => {
     const { recognition, calls } = setup(t, [() => reply(number), () => reply('OP01-001')]);
-    const card = await recognition.identify(photo, crop);
-    assert.equal(card.cardNumber, 'OP01-001');
-    assert.equal(recognition.canRetryNumber(card), false);
+    const lecture = await recognition.identify(photo, crop);
+    assert.equal(lecture.carte.cardNumber, 'OP01-001');
+    assert.equal(lecture.secoursUtilise, true);
     assertAttempt(calls[1], 'gemini-3.5-flash', 'low', photo);
     assert.equal(calls.length, 2);
   });

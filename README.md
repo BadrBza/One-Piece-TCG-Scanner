@@ -47,3 +47,5 @@ Les cotes sont des estimations Cardmarket, sans filtre de langue ou d’état ni
 Pour les réglages avancés, consulte le [guide de performance du scanner](docs/scanner-performance.md).
 
 Le catalogue Cardmarket est conservé en mémoire et sauvegardé dans `.cache/cardmarket/snapshot.json` pour les redémarrages. Il est actualisé en arrière-plan après une heure, à la prochaine recherche. Réglages : `CARDMARKET_CACHE_ENABLED` et `CARDMARKET_CACHE_TTL_MS`.
+
+Pour suivre les fonctionnalités dans le code : [guide de lecture](docs/code-navigation.md).

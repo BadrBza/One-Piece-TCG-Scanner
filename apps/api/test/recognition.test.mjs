@@ -52,7 +52,7 @@ test('the full recognition and dedicated number reading run in two calls', async
     return reply(card);
   };
   try {
-    assert.deepEqual(await new RecognitionService(config).identify(image, image), card);
+    assert.deepEqual((await new RecognitionService(config).identify(image, image)).carte, card);
     assert.equal(calls, 2);
   } finally { globalThis.fetch = original; }
 });
@@ -80,7 +80,7 @@ test('a valid dedicated reading replaces an unreadable general number', async ()
     ? reply({ cardNumber: 'OP13-118' })
     : reply({ ...card, cardNumber: 'UNKNOWN' });
   try {
-    assert.equal((await new RecognitionService(config).identify(image, image)).cardNumber, 'OP13-118');
+    assert.equal((await new RecognitionService(config).identify(image, image)).carte.cardNumber, 'OP13-118');
   } finally { globalThis.fetch = original; }
 });
 
@@ -153,7 +153,7 @@ test('temporary Gemini errors are retried once through AI SDK', async () => {
     ? Response.json({ error: { code: 503, message: 'Unavailable', status: 'UNAVAILABLE' } }, { status: 503 })
     : reply(card);
   try {
-    assert.deepEqual(await new RecognitionService(config).identify(image), card);
+    assert.deepEqual((await new RecognitionService(config).identify(image)).carte, card);
     assert.equal(calls, 3);
   } finally { globalThis.fetch = original; }
 });
@@ -173,7 +173,7 @@ test('a quota error falls back to the configured model without weakening structu
   };
   try {
     const proConfig = new ConfigService({ SCAN_OPTIMIZED: 'false', GOOGLE_GENERATIVE_AI_API_KEY: 'test-key', GEMINI_MODEL: 'gemini-3.1-pro-preview', GEMINI_FALLBACK_MODEL: 'gemini-3.5-flash-lite' });
-    assert.deepEqual(await new RecognitionService(proConfig).identify(image), card);
+    assert.deepEqual((await new RecognitionService(proConfig).identify(image)).carte, card);
     assert.equal(models.at(-1), 'flash');
     assert.ok(models.includes('pro'));
   } finally { globalThis.fetch = original; }

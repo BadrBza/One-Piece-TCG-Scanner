@@ -15,7 +15,8 @@ export const CardmarketPriceGuideSchema = z.object({
   })),
 });
 
-export type CardmarketData = {
-  catalog: z.infer<typeof CardmarketCatalogSchema>;
-  guide: z.infer<typeof CardmarketPriceGuideSchema>;
-};
+export const CardmarketDataSchema = z.object({
+  catalog: CardmarketCatalogSchema,
+  guide: CardmarketPriceGuideSchema,
+});
+export type CardmarketData = z.infer<typeof CardmarketDataSchema>;

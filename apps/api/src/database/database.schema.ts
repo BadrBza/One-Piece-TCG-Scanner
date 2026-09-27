@@ -28,3 +28,49 @@ export const DATABASE_SCHEMA = `
     UNIQUE(user_id, cardmarket_product_id)
   );
 `;
+
+export const SCHEMA_AUTHENTIFICATION = `
+  ALTER TABLE users ADD COLUMN email_verified_at TEXT;
+  ALTER TABLE users ADD COLUMN verification_exempt INTEGER NOT NULL DEFAULT 0;
+  UPDATE users SET verification_exempt = 1;
+  DELETE FROM sessions;
+  CREATE TABLE auth_sessions (
+    id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE TABLE access_tokens (
+    hash TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE TABLE refresh_tokens (
+    hash TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+    used_at INTEGER
+  );
+  CREATE INDEX access_session ON access_tokens(session_id);
+  CREATE INDEX refresh_session ON refresh_tokens(session_id);
+  CREATE TABLE pending_registrations (
+    hash TEXT PRIMARY KEY, email TEXT NOT NULL, password_hash TEXT NOT NULL,
+    nickname TEXT NOT NULL, avatar TEXT, expires_at INTEGER NOT NULL,
+    code_hash TEXT, code_expires_at INTEGER NOT NULL DEFAULT 0,
+    attempts INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE verification_sends (email TEXT NOT NULL, sent_at INTEGER NOT NULL);
+  CREATE INDEX verification_sends_email ON verification_sends(email, sent_at);
+  PRAGMA user_version = 4;
+`;
+
+export const SCHEMA_PROFIL = `
+  ALTER TABLE users ADD COLUMN nickname TEXT;
+  ALTER TABLE users ADD COLUMN avatar TEXT;
+  PRAGMA user_version = 3;
+`;
+
+export const REPRISE_COLLECTION = `
+  INSERT INTO portfolio_cards (
+    id, user_id, card_number, name, cardmarket_product_id, image_url,
+    language, rarity, variant, expansion, trend_price, quantity, added_at
+  ) SELECT id, user_id, card_number, name, cardmarket_product_id, image_url,
+    language, rarity, variant, expansion, trend_price, quantity, added_at
+    FROM portfolio_cards_legacy;
+  DROP TABLE portfolio_cards_legacy;
+`;

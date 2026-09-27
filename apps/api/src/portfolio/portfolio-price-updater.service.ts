@@ -4,12 +4,12 @@ import { Cron } from '@nestjs/schedule';
 import { CardmarketProvider } from '../pricing/providers/cardmarket.provider.js';
 import { PortfolioRepository } from './portfolio.repository.js';
 
-const ONE_DAY = 24 * 60 * 60 * 1000;
+const JOUR = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PortfolioPriceUpdater implements OnApplicationBootstrap {
   private readonly logger = new Logger(PortfolioPriceUpdater.name);
-  private refreshing = false;
+  private actualisationEnCours = false;
 
   constructor(
     private readonly portfolio: PortfolioRepository,
@@ -17,8 +17,8 @@ export class PortfolioPriceUpdater implements OnApplicationBootstrap {
   ) {}
 
   onApplicationBootstrap() {
-    const cutoff = new Date(Date.now() - ONE_DAY).toISOString();
-    return this.refresh(this.portfolio.productIds(cutoff));
+    const limite = new Date(Date.now() - JOUR).toISOString();
+    return this.refresh(this.portfolio.productIds(limite));
   }
 
   @Cron('0 12 * * *', { timeZone: 'Europe/Brussels' })
@@ -26,18 +26,18 @@ export class PortfolioPriceUpdater implements OnApplicationBootstrap {
     return this.refresh(this.portfolio.productIds());
   }
 
-  async refresh(productIds: number[]) {
-    if (this.refreshing || productIds.length === 0) return;
-    this.refreshing = true;
+  async refresh(produits: number[]) {
+    if (this.actualisationEnCours || produits.length === 0) return;
+    this.actualisationEnCours = true;
     try {
-      const { prices, updatedAt } = await this.cardmarket.getTrendPrices(productIds);
-      for (const [productId, trendPrice] of prices) {
-        this.portfolio.updatePrice(productId, trendPrice, updatedAt);
+      const { prices, updatedAt } = await this.cardmarket.getTrendPrices(produits);
+      for (const [produitId, prix] of prices) {
+        this.portfolio.updatePrice(produitId, prix, updatedAt);
       }
     } catch {
       this.logger.warn('La mise à jour quotidienne des cotes Cardmarket a échoué.');
     } finally {
-      this.refreshing = false;
+      this.actualisationEnCours = false;
     }
   }
 }

@@ -11,10 +11,9 @@ import { withGeminiModel } from '../recognition/gemini-model.js';
 import { decodePhoto, decodeReferenceImage, resizeImage, type DecodedImage } from '../common/image-utils.js';
 import type { CardRecognition } from '../recognition/card-recognition.schema.js';
 import { CompactVariantSchema, OptcgCardsSchema, VariantPhotoAnalysisSchema, type VariantMetadata } from './card-variants.schema.js';
-import type { PriceResult } from './price-result.js';
+import { illustrerProduit, type PriceResult } from './price-result.js';
 
-type Product = NonNullable<PriceResult['products']>[number];
-type VariantProduct = Product & { version: number; imageUrl: string };
+type VariantProduct = ReturnType<typeof illustrerProduit>;
 type Reference = DecodedImage & { product: VariantProduct };
 type Analysis = { message?: string; metadata: VariantMetadata; selectedProductId?: number; matchConfidence?: number };
 type CardInfo = { rarity: string; setName: string };
@@ -25,6 +24,17 @@ const FAST_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 @Injectable()
 export class CardVariantsService {
   constructor(private readonly config: ConfigService) {}
+
+  async variants(card: CardRecognition, guide: PriceResult, photo: string | DecodedImage): Promise<PriceResult> {
+    const variants = [...(guide.products ?? [])].sort((a, b) => a.id - b.id).map(illustrerProduit);
+    if (!variants.length) return guide;
+
+    const infoPromise = this.chargerInfosCarte(card.cardNumber);
+    const analysis = await this.analyserPhoto(photo, variants);
+    const cardInfo = await this.infosDisponibles(infoPromise);
+    return this.construireResultat(card, guide, variants, analysis, cardInfo);
+  }
+
   private get optimized() { return this.config.get<string>('SCAN_OPTIMIZED') !== 'false'; }
   private get variantModel() { return this.config.get<string>('GEMINI_VARIANT_MODEL')?.trim() || FAST_GEMINI_MODEL; }
   private get threshold() {
@@ -32,17 +42,12 @@ export class CardVariantsService {
     return Number.isFinite(value) && value >= 0 && value <= 1 ? value : 0.95;
   }
 
-  async variants(card: CardRecognition, guide: PriceResult, photo: string): Promise<PriceResult> {
-    const variants = this.addVariantDetails(guide.products ?? []);
-    if (!variants.length) return guide;
+  private infosDisponibles(infos: Promise<CardInfo | undefined>) {
+    // En mode optimisé, utiliser seulement les métadonnées déjà disponibles après la comparaison.
+    return this.optimized ? Promise.race([infos, Promise.resolve(undefined)]) : infos;
+  }
 
-    const infoPromise = this.getCardInfo(card.cardNumber);
-    const analysis = await this.analyzePhoto(photo, variants);
-    // Optimized photo scans must not wait on optional OPTCG metadata.
-    const cardInfo = this.optimized
-      ? await Promise.race([infoPromise, Promise.resolve(undefined)])
-      : await infoPromise;
-
+  private construireResultat(card: CardRecognition, guide: PriceResult, variants: VariantProduct[], analysis: Analysis, cardInfo?: CardInfo): PriceResult {
     const products = variants.map(product => {
       const description = analysis.metadata.find(item => item.id === String(product.id));
       return {
@@ -65,15 +70,75 @@ export class CardVariantsService {
     };
   }
 
-  private addVariantDetails(products: Product[]): VariantProduct[] {
-    return [...products].sort((a, b) => a.id - b.id).map((product, index) => ({
-      ...product,
-      version: index + 1,
-      imageUrl: `https://cardmarketapi.com/cards/${product.id}/image`,
-    }));
+  private async analyserPhoto(photo: string | DecodedImage, products: VariantProduct[]): Promise<Analysis> {
+    try {
+      const references = await measureScan('references', () => this.references(products));
+      if (this.optimized && references.length !== products.length) {
+        return { metadata: [], message: 'Certaines images de référence sont indisponibles. La variante ne peut pas être confirmée automatiquement.' };
+      }
+      if (!references.length) return { metadata: [] };
+      const image = typeof photo === 'string' ? decodePhoto(photo) : photo;
+      return this.optimized
+        ? await this.comparerParcoursOptimise(image, products, references)
+        : await this.comparerAncienParcours(image, products, references);
+    } catch { return { metadata: [] }; }
   }
 
-  private async variantGenerate<T extends z.ZodType>(options: {
+  private async comparerAncienParcours(image: DecodedImage, products: VariantProduct[], references: Reference[]): Promise<Analysis> {
+    const output = await this.genererComparaison({
+      system: MATCH_CARD_VARIANT_PROMPT,
+      content: [
+        { type: 'text', text: 'USER PHOTO' },
+        { type: 'file', data: image.data, mediaType: image.mediaType },
+        ...this.referenceMessages(references),
+      ],
+      schema: VariantPhotoAnalysisSchema,
+      stage: 'compare-legacy',
+      timeout: 45_000,
+    });
+    const metadata = output.items;
+    const selected = products.find(product => String(product.id) === output.selectedId);
+    return selected
+      ? { metadata, selectedProductId: selected.id, matchConfidence: output.confidence }
+      : { metadata };
+  }
+
+  private async comparerParcoursOptimise(image: DecodedImage, products: VariantProduct[], references: Reference[]): Promise<Analysis> {
+    for (const detaille of [false, true]) {
+      const resultat = await this.comparerImages(image, references, detaille);
+      if (resultat.confidence < this.threshold) continue;
+      const produit = products.find(product => String(product.id) === resultat.selectedId);
+      if (!produit) continue;
+      return {
+        metadata: [{ id: String(produit.id), language: resultat.language, variant: resultat.variant }],
+        selectedProductId: produit.id,
+        matchConfidence: resultat.confidence,
+      };
+    }
+    return { metadata: [] };
+  }
+
+  private async comparerImages(image: DecodedImage, references: Reference[], detailed: boolean) {
+    const prepared = await Promise.all(references.map(async reference => ({
+      product: reference.product,
+      ...(detailed ? reference : await resizeImage(reference, 600, 840)),
+    })));
+    const userImage = detailed ? image : await resizeImage(image, 1000, 1400);
+    return this.genererComparaison({
+      system: MATCH_COMPACT_VARIANT_PROMPT,
+      content: [
+        ...this.referenceMessages(prepared),
+        { type: 'text', text: 'USER PHOTO' },
+        { type: 'file', data: userImage.data, mediaType: userImage.mediaType },
+      ],
+      schema: CompactVariantSchema,
+      stage: detailed ? 'compare-detailed' : 'compare',
+      resolution: detailed ? 'MEDIA_RESOLUTION_HIGH' : 'MEDIA_RESOLUTION_MEDIUM',
+      timeout: detailed ? 30_000 : 45_000,
+    });
+  }
+
+  private async genererComparaison<T extends z.ZodType>(options: {
     system: string;
     content: UserContent;
     schema: T;
@@ -99,69 +164,6 @@ export class CardVariantsService {
     return response.output as z.infer<T>;
   }
 
-  private async analyzePhoto(photo: string, products: VariantProduct[]): Promise<Analysis> {
-    if (this.optimized) return this.analyzeCompact(photo, products);
-    try {
-      const references = await measureScan('references', () => this.references(products));
-      if (!references.length) return { metadata: [] };
-      const image = decodePhoto(photo);
-      const output = await this.variantGenerate({
-        system: MATCH_CARD_VARIANT_PROMPT,
-        content: [
-          { type: 'text', text: 'USER PHOTO' },
-          { type: 'file', data: image.data, mediaType: image.mediaType },
-          ...this.referenceMessages(references),
-        ],
-        schema: VariantPhotoAnalysisSchema,
-        stage: 'compare-legacy',
-        timeout: 45_000,
-      });
-      const metadata = output.items;
-      const selected = products.find(product => String(product.id) === output.selectedId);
-      return selected
-        ? { metadata, selectedProductId: selected.id, matchConfidence: output.confidence }
-        : { metadata };
-    } catch {
-      return { metadata: [] };
-    }
-  }
-
-  private async analyzeCompact(photo: string, products: VariantProduct[]): Promise<Analysis> {
-    const metadata: VariantMetadata = [];
-    try {
-      const references = await measureScan('references', () => this.references(products));
-      // A partial candidate set cannot establish the exact version.
-      if (references.length !== products.length) return { metadata, message: 'Certaines images de référence sont indisponibles. La variante ne peut pas être confirmée automatiquement.' };
-      const image = decodePhoto(photo);
-      const compare = async (detailed: boolean) => {
-        const prepared = await Promise.all(references.map(async reference => ({
-          product: reference.product,
-          ...(detailed ? reference : await resizeImage(reference, 600, 840)),
-        })));
-        const userImage = detailed ? image : await resizeImage(image, 1000, 1400);
-        return this.variantGenerate({
-          system: MATCH_COMPACT_VARIANT_PROMPT,
-          content: [
-            ...this.referenceMessages(prepared),
-            { type: 'text', text: 'USER PHOTO' },
-            { type: 'file', data: userImage.data, mediaType: userImage.mediaType },
-          ],
-          schema: CompactVariantSchema,
-          stage: detailed ? 'compare-detailed' : 'compare',
-          resolution: detailed ? 'MEDIA_RESOLUTION_HIGH' : 'MEDIA_RESOLUTION_MEDIUM',
-          timeout: detailed ? 30_000 : 45_000,
-        });
-      };
-      let result = await compare(false);
-      const accepted = () => result.confidence >= this.threshold && products.some(product => String(product.id) === result.selectedId);
-      if (!accepted()) result = await compare(true);
-      if (!accepted()) return { metadata };
-      const selected = products.find(product => String(product.id) === result.selectedId)!;
-      const item = { id: String(selected.id), language: result.language, variant: result.variant };
-      return { metadata: [item], selectedProductId: selected.id, matchConfidence: result.confidence };
-    } catch { return { metadata }; }
-  }
-
   private referenceMessages(references: Reference[]): UserContent {
     return references.flatMap(({ product, data, mediaType }) => [
       { type: 'text', text: `CARDMARKET REFERENCE ID: ${product.id}` },
@@ -177,7 +179,7 @@ export class CardVariantsService {
     return downloads.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
   }
 
-  private async getCardInfo(cardNumber: string): Promise<CardInfo | undefined> {
+  private async chargerInfosCarte(cardNumber: string): Promise<CardInfo | undefined> {
     try {
       const payload = await ky.get(`https://optcgapi.com/api/sets/card/${encodeURIComponent(cardNumber)}/`, { timeout: 15_000, retry: 0 }).json();
       const card = OptcgCardsSchema.parse(payload)[0];
