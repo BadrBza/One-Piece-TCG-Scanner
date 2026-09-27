@@ -21,11 +21,11 @@ export function readFile(file: File) {
 
 
 /** Enlarges the lower part of the photograph without changing the original. */
-export async function cardNumberCrop(source: string): Promise<string> {
+export async function cardNumberCrop(source: string, game: 'one-piece' | 'pokemon' = 'one-piece'): Promise<string> {
   const image = new Image();
   image.src = source;
   await image.decode();
-  const sourceX = Math.round(image.naturalWidth * 0.4);
+  const sourceX = game === 'pokemon' ? 0 : Math.round(image.naturalWidth * 0.4);
   const sourceY = Math.round(image.naturalHeight * 0.7);
   const cropWidth = Math.max(1, image.naturalWidth - sourceX);
   const cropHeight = Math.max(1, image.naturalHeight - sourceY);

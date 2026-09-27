@@ -74,3 +74,38 @@ export const REPRISE_COLLECTION = `
     FROM portfolio_cards_legacy;
   DROP TABLE portfolio_cards_legacy;
 `;
+
+export const SCHEMA_COLLECTION_MULTIJEUX = `
+  CREATE TABLE portfolio_cards_multi (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    game TEXT NOT NULL DEFAULT 'one-piece' CHECK(game IN ('one-piece', 'pokemon')),
+    identity_key TEXT NOT NULL,
+    catalog_id TEXT,
+    finish_id TEXT,
+    card_number TEXT NOT NULL,
+    name TEXT NOT NULL,
+    cardmarket_product_id INTEGER,
+    image_url TEXT,
+    language TEXT,
+    rarity TEXT,
+    variant TEXT,
+    expansion TEXT,
+    trend_price REAL,
+    price_updated_at TEXT,
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK(quantity > 0),
+    added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK((game = 'one-piece' AND cardmarket_product_id IS NOT NULL)
+      OR (game = 'pokemon' AND catalog_id IS NOT NULL AND finish_id IS NOT NULL AND language IS NOT NULL AND language IN ('FR', 'EN', 'JP'))),
+    UNIQUE(user_id, game, identity_key)
+  );
+  INSERT INTO portfolio_cards_multi (
+    id, user_id, identity_key, card_number, name, cardmarket_product_id, image_url,
+    language, rarity, variant, expansion, trend_price, price_updated_at, quantity, added_at
+  ) SELECT id, user_id, CAST(cardmarket_product_id AS TEXT), card_number, name, cardmarket_product_id, image_url,
+    language, rarity, variant, expansion, trend_price, price_updated_at, quantity, added_at
+    FROM portfolio_cards;
+  DROP TABLE portfolio_cards;
+  ALTER TABLE portfolio_cards_multi RENAME TO portfolio_cards;
+  PRAGMA user_version = 5;
+`;

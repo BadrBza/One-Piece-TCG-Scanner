@@ -1,8 +1,10 @@
-import type { RecognizedScanResult } from '../scanner.api';
+import type { PokemonResult as PokemonScanResult, RecognizedScanResult } from '../scanner.api';
+import { PokemonResult } from './PokemonResult';
 import { CardmarketPrices } from './CardmarketPrices';
 import { languageLabels, variantLabels } from '../labels';
 
-export function ScanResult({ result, source }: { result: RecognizedScanResult; source: 'photo' | 'manual' }) {
+export function ScanResult({ result, source }: { result: RecognizedScanResult | PokemonScanResult; source: 'photo' | 'manual' }) {
+  if (result.game === 'pokemon') return <PokemonResult card={result.card} />;
   return <div className="space-y-5">
           <dl className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-x-5 gap-y-4 rounded-2xl border border-stone-200 bg-[#fffefa] p-4 text-sm sm:p-6">
             <CardField label="Carte" value={result.card.name} />

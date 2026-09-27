@@ -1,11 +1,12 @@
 # HakiScan
 
-Scanne tes cartes One Piece TCG, consulte leur cote Cardmarket et gère ta collection.
+Scanne tes cartes One Piece et Pokémon, consulte leur cote Cardmarket et gère ta collection.
 
 ## Fonctionnalités
 
 - Identification par photo avec Gemini et choix de la variante.
-- Recherche par référence directement dans les données Cardmarket, sans IA.
+- Pokémon FR/EN/JP : identification par référence, nom et extension, puis choix manuel de la finition, sans comparaison d’images.
+- Recherche par référence sans IA : Cardmarket pour One Piece, TCGdex pour Pokémon.
 - Collection personnelle avec quantités, tri et cotes actualisées chaque jour à 12 h (Europe/Brussels).
 - Inscription avec vérification par e-mail, pseudo et photo de profil facultative.
 - Confirmation avant suppression d’une carte.
@@ -46,6 +47,6 @@ Les cotes sont des estimations Cardmarket, sans filtre de langue ou d’état ni
 
 Pour les réglages avancés, consulte le [guide de performance du scanner](docs/scanner-performance.md).
 
-Le catalogue Cardmarket est conservé en mémoire et sauvegardé dans `.cache/cardmarket/snapshot.json` pour les redémarrages. Il est actualisé en arrière-plan après une heure, à la prochaine recherche. Réglages : `CARDMARKET_CACHE_ENABLED` et `CARDMARKET_CACHE_TTL_MS`.
+Le catalogue One Piece est conservé en mémoire et dans `.cache/cardmarket/snapshot.json`. Réglages : `CARDMARKET_CACHE_ENABLED` et `CARDMARKET_CACHE_TTL_MS`. Pokémon utilise les fiches TCGdex sans clé supplémentaire, avec un cache mémoire d’une heure ; images et cotes dépendent de leur disponibilité.
 
 Pour suivre les fonctionnalités dans le code : [guide de lecture](docs/code-navigation.md).

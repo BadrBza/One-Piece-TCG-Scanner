@@ -2,12 +2,16 @@ import { Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service.js';
 import type { AddPortfolioCard, PortfolioCard } from './portfolio.schema.js';
+import type { PokemonLanguage } from '../pokemon/pokemon.schema.js';
 
 type PortfolioRow = {
   id: number;
+  game: 'one-piece' | 'pokemon';
+  catalog_id: string | null;
+  finish_id: string | null;
   card_number: string;
   name: string;
-  cardmarket_product_id: number;
+  cardmarket_product_id: number | null;
   image_url: string | null;
   language: string | null;
   rarity: string | null;
@@ -33,19 +37,23 @@ export class PortfolioRepository {
   add(userId: number, card: AddPortfolioCard): PortfolioCard {
     const row = this.database.connection.prepare(`
       INSERT INTO portfolio_cards (
-        user_id, card_number, name, cardmarket_product_id, image_url,
+        user_id, game, identity_key, catalog_id, finish_id, card_number, name, cardmarket_product_id, image_url,
         language, rarity, variant, expansion, trend_price, price_updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE strftime('%Y-%m-%dT%H:%M:%fZ', 'now') END)
-      ON CONFLICT(user_id, cardmarket_product_id) DO UPDATE SET
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE COALESCE(?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) END)
+      ON CONFLICT(user_id, game, identity_key) DO UPDATE SET
         quantity = quantity + 1,
         trend_price = COALESCE(excluded.trend_price, portfolio_cards.trend_price),
         price_updated_at = COALESCE(excluded.price_updated_at, portfolio_cards.price_updated_at)
       RETURNING *
     `).get(
       userId,
+      card.game,
+      card.game === 'pokemon' ? JSON.stringify([card.catalogId, card.language, card.finishId]) : String(card.cardmarketProductId),
+      card.game === 'pokemon' ? card.catalogId : null,
+      card.game === 'pokemon' ? card.finishId : null,
       card.cardNumber,
       card.name,
-      card.cardmarketProductId,
+      card.cardmarketProductId ?? null,
       card.imageUrl ?? null,
       card.language ?? null,
       card.rarity ?? null,
@@ -53,6 +61,7 @@ export class PortfolioRepository {
       card.expansion ?? null,
       card.trendPrice ?? null,
       card.trendPrice ?? null,
+      card.game === 'pokemon' ? card.priceUpdatedAt ?? null : null,
     ) as PortfolioRow;
 
     return toPortfolioCard(row);
@@ -65,9 +74,9 @@ export class PortfolioRepository {
   }
 
   productIds(olderThan?: string): number[] {
-    const where = olderThan ? 'WHERE price_updated_at IS NULL OR price_updated_at < ?' : '';
+    const where = olderThan ? 'AND (price_updated_at IS NULL OR price_updated_at < ?)' : '';
     const rows = this.database.connection.prepare(
-      `SELECT DISTINCT cardmarket_product_id FROM portfolio_cards ${where}`,
+      `SELECT DISTINCT cardmarket_product_id FROM portfolio_cards WHERE game = 'one-piece' ${where}`,
     ).all(...(olderThan ? [olderThan] : [])) as Array<{ cardmarket_product_id: number }>;
     return rows.map(row => row.cardmarket_product_id);
   }
@@ -76,18 +85,31 @@ export class PortfolioRepository {
     this.database.connection.prepare(`
       UPDATE portfolio_cards
       SET trend_price = ?, price_updated_at = ?
-      WHERE cardmarket_product_id = ?
+      WHERE game = 'one-piece' AND cardmarket_product_id = ?
     `).run(trendPrice, updatedAt, productId);
+  }
+
+  cartesPokemon(olderThan?: string) {
+    const condition = olderThan ? 'AND (price_updated_at IS NULL OR price_updated_at < ?)' : '';
+    return this.database.connection.prepare(`
+      SELECT DISTINCT catalog_id AS catalogId, language FROM portfolio_cards WHERE game = 'pokemon' ${condition}
+    `).all(...(olderThan ? [olderThan] : [])) as Array<{ catalogId: string; language: PokemonLanguage }>;
+  }
+
+  actualiserPokemon(catalogId: string, langue: PokemonLanguage, finition: string, prix: number, date: string) {
+    this.database.connection.prepare(`UPDATE portfolio_cards SET trend_price = ?, price_updated_at = ?
+      WHERE game = 'pokemon' AND catalog_id = ? AND language = ? AND finish_id = ?`)
+      .run(prix, date, catalogId, langue, finition);
   }
 
 }
 
 function toPortfolioCard(row: PortfolioRow): PortfolioCard {
-  return {
+  const carte = {
     id: row.id,
     cardNumber: row.card_number,
     name: row.name,
-    cardmarketProductId: row.cardmarket_product_id,
+    cardmarketProductId: row.cardmarket_product_id ?? undefined,
     imageUrl: row.image_url ?? undefined,
     language: row.language ?? undefined,
     rarity: row.rarity ?? undefined,
@@ -98,4 +120,7 @@ function toPortfolioCard(row: PortfolioRow): PortfolioCard {
     addedAt: row.added_at,
     priceUpdatedAt: row.price_updated_at ?? undefined,
   };
+  return row.game === 'pokemon'
+    ? { ...carte, game: 'pokemon', catalogId: row.catalog_id!, finishId: row.finish_id!, language: row.language as PokemonLanguage }
+    : { ...carte, game: 'one-piece', cardmarketProductId: row.cardmarket_product_id! };
 }

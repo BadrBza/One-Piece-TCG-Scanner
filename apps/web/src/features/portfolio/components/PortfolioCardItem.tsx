@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import type { PortfolioCard } from '../portfolio.api';
 import { errorMessage } from '../../../lib/http';
 import { RemoveCardDialog } from './RemoveCardDialog';
+import { languageLabels } from '../../scanner/labels';
 
 import { euros } from '../../../lib/format';
 const dates = new Intl.DateTimeFormat('fr-BE', { dateStyle: 'medium' });
@@ -29,12 +30,13 @@ export function PortfolioCardItem({ card, onRemove }: { card: PortfolioCard; onR
     <article className="flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere] rounded-md border border-stone-300 bg-[#fffefa] p-4">
       {card.imageUrl && <img src={card.imageUrl} alt={card.name} loading="lazy" className="h-64 w-full rounded-sm bg-stone-100 object-contain p-2" />}
       <div>
+        <p className="mb-1 text-xs font-semibold text-[#8f2430]">{card.game === 'pokemon' ? 'Pokémon' : 'One Piece'}</p>
         <p className="text-xs font-medium text-stone-500">{card.cardNumber} · Quantité : {card.quantity}</p>
         <h2 className="mt-1 font-semibold">{card.name}</h2>
         {card.expansion && <p className="mt-1 text-sm text-stone-500">{card.expansion}</p>}
       </div>
       <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-stone-600">
-        {[card.language, card.rarity, card.variant].filter(Boolean).map((label, index) => <span key={index}>{index > 0 && <span className="mr-2 text-stone-300">·</span>}{label}</span>)}
+        {[card.game === 'pokemon' ? languageLabels[card.language] : card.language, card.rarity, card.variant].filter(Boolean).map((label, index) => <span key={index}>{index > 0 && <span className="mr-2 text-stone-300">·</span>}{label}</span>)}
       </div>
       <div className="text-sm">
         <p><strong className="text-lg text-[#8f2430]">{card.trendPrice === undefined ? 'Cote indisponible' : euros.format(card.trendPrice)}</strong> <span className="text-stone-500">par carte</span></p>

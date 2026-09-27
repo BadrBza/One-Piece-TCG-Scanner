@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { DATABASE_SCHEMA, REPRISE_COLLECTION, SCHEMA_AUTHENTIFICATION, SCHEMA_PROFIL } from './database.schema.js';
+import { DATABASE_SCHEMA, REPRISE_COLLECTION, SCHEMA_AUTHENTIFICATION, SCHEMA_PROFIL, SCHEMA_COLLECTION_MULTIJEUX } from './database.schema.js';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
@@ -19,6 +19,7 @@ export class DatabaseService implements OnModuleDestroy {
     this.migrerCollection();
     this.migrerProfil();
     this.migrerAuthentification();
+    if (this.versionSchema < 5) this.migration(() => this.connection.exec(SCHEMA_COLLECTION_MULTIJEUX));
   }
 
   onModuleDestroy() {

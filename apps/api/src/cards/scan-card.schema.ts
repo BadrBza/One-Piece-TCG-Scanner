@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { isCardNumber, normalizeCardNumber } from '../recognition/card-number.js';
 
-export const ScanCardSchema = z.object({
+export const GameSchema = z.enum(['one-piece', 'pokemon']);
+export type CardGame = z.infer<typeof GameSchema>;
+export const GameSelectionSchema = z.object({ game: GameSchema.default('one-piece') });
+export const LookupCardSchema = GameSelectionSchema.extend({ number: z.string().default('') });
+
+export const ScanCardSchema = GameSelectionSchema.extend({
   image: z.string(),
   numberImage: z.string().optional(),
 });

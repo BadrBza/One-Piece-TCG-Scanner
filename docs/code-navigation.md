@@ -10,6 +10,7 @@ Chaque fonctionnalité suit le même chemin : **écran → hook/action → clien
 | Scan photo | `Scanner.tsx` → `useScanner.ts` → `scanner.api.ts` → `cards.controller.ts` → `cards.service.ts` |
 | Reconnaissance | `recognition.service.ts` → lecture rapide → secours si nécessaire → numéro validé |
 | Catalogue et variante | `cards.service.ts` → `cardmarket.provider.ts` → `card-variants.service.ts` → résultat |
+| Pokémon | `cards.service.ts` → `pokemon.service.ts` → `tcgdex.provider.ts` → fiche ou choix manuel |
 | Référence manuelle | `useScanner.ts` → `scanner.api.ts` → `cards.service.ts.lookup` → `cardmarket.provider.ts`, sans IA |
 | Collection | composants de collection → `portfolio.api.ts` → `portfolio.controller.ts` → `portfolio.repository.ts` |
 | Actualisation des cotes | `portfolio-price-updater.service.ts` → `cardmarket.provider.ts` → `portfolio.repository.ts` |
@@ -38,3 +39,13 @@ Le service de vérification prépare sa configuration une fois par inscription o
 Les sessions suivent la même séparation : le service décide des expirations et rotations, le repository exécute le SQL. `DatabaseService` orchestre les migrations dont le SQL est regroupé dans `database.schema.ts`.
 
 Le fournisseur Cardmarket restaure le cache disque une seule fois, puis utilise `lru-cache` pour les lectures et actualisations. Les téléchargements partagent une instance Ky ; les écritures disque restent séquentielles et ne bloquent pas les scans.
+
+## Pokémon
+
+`game: 'pokemon'` sélectionne ce parcours sur `/cards/scan`, `/cards/lookup` et `/cards/resolve`. Sans ce champ, les routes restent One Piece. La recherche manuelle accepte `number`, `language` (`FR`, `EN`, `JP`), `name` et `set`. La résolution d’un choix accepte `catalogId` et `language`, sans image.
+
+Le service effectue au plus deux lectures Gemini, avec les modèles de lecture déjà configurés. La recherche catalogue est déterministe et ne télécharge aucune image. Les correspondances ambiguës renvoient `card_confirmation_required` ; une fiche identifiée contient ses finitions avec des identifiants distincts de ceux de Cardmarket. Les métriques sont préfixées `pokemon-`.
+
+TCGdex est appelé via Ky (15 s, sans nouvelle tentative), validé avec Zod et mis en cache via `lru-cache` (500 réponses, une heure). Les cartes Pocket sont exclues par leur série. Les prix manquants ou partagés entre éditions impossibles à distinguer restent indisponibles.
+
+La migration SQLite vers la version 5 préserve les identifiants et quantités existants. One Piece reste regroupé par produit Cardmarket ; Pokémon est regroupé par carte catalogue, langue et finition, pour chaque utilisateur. L’ajout Pokémon recharge la fiche validée côté serveur. À 12 h (Europe/Brussels), l’actualisation traite les deux jeux séparément et conserve les anciennes cotes en cas d’échec.

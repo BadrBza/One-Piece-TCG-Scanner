@@ -6,6 +6,9 @@ import { RecognitionService, type LectureCarte } from '../recognition/recognitio
 import { CardVariantsService } from '../pricing/card-variants.service.js';
 import { creerCarte, type CardRecognition } from '../recognition/card-recognition.schema.js';
 import { illustrerProduit, type PriceResult } from '../pricing/price-result.js';
+import { PokemonService } from '../pokemon/pokemon.service.js';
+import type { PokemonLookup, PokemonLanguage } from '../pokemon/pokemon.schema.js';
+import type { CardGame } from './scan-card.schema.js';
 
 @Injectable()
 export class CardsService {
@@ -13,9 +16,11 @@ export class CardsService {
     private readonly recognitionService: RecognitionService,
     private readonly cardmarket: CardmarketProvider,
     private readonly cardVariants: CardVariantsService,
+    private readonly pokemon: PokemonService,
   ) {}
 
-  async lookup(numero: string) {
+  async lookup(numero: string, game: CardGame = 'one-piece', recherche?: PokemonLookup) {
+    if (game === 'pokemon') return this.pokemon.lookup(recherche ?? { number: numero, language: 'FR', name: '', set: '' });
     const carte = creerCarte(numero);
     const catalogue = await this.cardmarket.getPrice(carte);
     const produits = catalogue.products?.map(illustrerProduit);
@@ -33,7 +38,12 @@ export class CardsService {
     return { card: { ...this.completerCarte(carte, cote), rarity: rarete ?? null }, prices: { cardmarket: cote } };
   }
 
-  scan(image: string, numberImage?: string) {
+  resolvePokemon(catalogId: string, language: PokemonLanguage) {
+    return this.pokemon.resolve(catalogId, language);
+  }
+
+  scan(image: string, numberImage?: string, game: CardGame = 'one-piece') {
+    if (game === 'pokemon') return this.pokemon.scan(image, numberImage);
     return scanContext(async () => {
       const lecture = await this.recognitionService.identify(image, numberImage);
       if ('status' in lecture) return lecture;
