@@ -6,7 +6,7 @@ export type DecodedImage = { data: Buffer; mediaType: string };
 const IMAGE_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
 
 /** Returns null when the data URL is missing, malformed, or empty after decode. */
-export function parseDataUrl(value: string): DecodedImage | null {
+function parseDataUrl(value: string): DecodedImage | null {
   const match = IMAGE_PATTERN.exec(value);
   if (!match || match[2].length % 4 !== 0) return null;
   const data = Buffer.from(match[2], 'base64');
@@ -14,10 +14,16 @@ export function parseDataUrl(value: string): DecodedImage | null {
   return { data, mediaType: match[1] };
 }
 
-export function decodeImage(value: string, maxBytes: number, errorMessage: string): DecodedImage {
+function decodeImage(value: string, maxBytes: number, errorMessage: string): DecodedImage {
   const image = parseDataUrl(value);
   if (!image || image.data.length > maxBytes) throw new BadRequestException(errorMessage);
   return image;
+}
+
+export function preparerImagesScan(image: string, numberImage?: string) {
+  const photo = decodeImage(image, 7 * 1024 * 1024, 'Importe une photo JPG, PNG ou WebP de 7 Mo maximum.');
+  const grosPlan = numberImage === undefined ? undefined : decodeImage(numberImage, 3 * 1024 * 1024, 'Le gros plan du numéro est invalide ou trop volumineux.');
+  return { photo, grosPlan };
 }
 
 export async function resizeImage(image: DecodedImage, width: number, height: number): Promise<DecodedImage> {

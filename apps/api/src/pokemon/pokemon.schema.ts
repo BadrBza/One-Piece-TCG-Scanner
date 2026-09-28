@@ -4,7 +4,7 @@ export const PokemonLanguageSchema = z.enum(['FR', 'EN', 'JP']);
 export type PokemonLanguage = z.infer<typeof PokemonLanguageSchema>;
 export const languesPokemon = { FR: 'fr', EN: 'en', JP: 'ja' } as const;
 
-export function normaliserNumero(numero: string) {
+function normaliserNumero(numero: string) {
   return numero.normalize('NFKC').trim().toUpperCase().replace(/\s/g, '').replace(/[–—]/g, '-');
 }
 

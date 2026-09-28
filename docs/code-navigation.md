@@ -32,6 +32,8 @@ Le frontend se trouve dans `apps/web/src` et l’API dans `apps/api/src`. Les fo
 
 `RecognitionService.identify` valide et décode les images une fois, puis renvoie soit une demande de confirmation, soit `{ carte, photo, secoursUtilise }`. `CardsService` consulte le catalogue et peut déclencher une seule lecture de secours si le numéro est absent, si le parcours est optimisé et si le secours n’a pas déjà été utilisé. Une panne du catalogue ne déclenche pas de lecture supplémentaire.
 
+One Piece et Pokémon partagent `preparerImagesScan`, les réglages de lecture et `genererStructure`. `mesurerGeneration` regroupe durée et usage ; les services gardent la décision de secours et la création des délais.
+
 La photo décodée passe ensuite à `CardVariantsService` : téléchargement des références, comparaison selon le parcours choisi, puis construction du résultat. La recherche manuelle conserve son ordre de produits et n’appelle pas ce service. Les informations internes de lecture ne sont jamais incluses dans la réponse HTTP.
 
 Le service de vérification prépare sa configuration une fois par inscription ou renvoi, réserve le code dans une transaction, puis envoie l’e-mail hors transaction. Le repository conserve les requêtes préparées. Une validation de code incorrecte comptabilise sa tentative avant de retourner l’erreur.
@@ -47,5 +49,7 @@ Le fournisseur Cardmarket restaure le cache disque une seule fois, puis utilise 
 Le service effectue au plus deux lectures Gemini, avec les modèles de lecture déjà configurés. La recherche catalogue est déterministe et ne télécharge aucune image. Les correspondances ambiguës renvoient `card_confirmation_required` ; une fiche identifiée contient ses finitions avec des identifiants distincts de ceux de Cardmarket. Les métriques sont préfixées `pokemon-`.
 
 TCGdex est appelé via Ky (15 s, sans nouvelle tentative), validé avec Zod et mis en cache via `lru-cache` (500 réponses, une heure). Les cartes Pocket sont exclues par leur série. Les prix manquants ou partagés entre éditions impossibles à distinguer restent indisponibles.
+
+La recherche choisit les extensions par code, total ou nom avant de charger leurs fiches. `pokemon-card.ts` rassemble la construction des cartes et de leurs finitions ; le repository prépare leur identité avant l’insertion SQL.
 
 La migration SQLite vers la version 5 préserve les identifiants et quantités existants. One Piece reste regroupé par produit Cardmarket ; Pokémon est regroupé par carte catalogue, langue et finition, pour chaque utilisateur. L’ajout Pokémon recharge la fiche validée côté serveur. À 12 h (Europe/Brussels), l’actualisation traite les deux jeux séparément et conserve les anciennes cotes en cas d’échec.

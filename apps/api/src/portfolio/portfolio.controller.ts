@@ -21,14 +21,12 @@ export class PortfolioController {
   async add(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
     const carte = valider(AddPortfolioCardSchema, body, 'Les informations de la carte sont invalides.');
     if (carte.game === 'pokemon') {
-      const fiche = await this.pokemon.carte(carte.catalogId, carte.language);
-      const finition = fiche.finishes.find(finition => finition.id === carte.finishId);
+      const { finishes, ...fiche } = await this.pokemon.carte(carte.catalogId, carte.language);
+      const finition = finishes.find(finition => finition.id === carte.finishId);
       if (!finition) throw new BadRequestException('Cette finition Pokémon n’est plus disponible. Relance la recherche.');
+      const { id, label, ...prix } = finition;
       return this.portfolio.add(request.user.id, {
-        game: 'pokemon', catalogId: fiche.catalogId, finishId: finition.id,
-        cardNumber: fiche.cardNumber, name: fiche.name, language: fiche.language,
-        imageUrl: fiche.imageUrl, rarity: fiche.rarity, expansion: fiche.expansion, variant: finition.label,
-        cardmarketProductId: finition.cardmarketProductId, trendPrice: finition.trendPrice, priceUpdatedAt: finition.priceUpdatedAt,
+        ...fiche, ...prix, game: 'pokemon', finishId: id, variant: label,
       });
     }
     return this.portfolio.add(request.user.id, carte);

@@ -1,13 +1,13 @@
 import ky from 'ky';
-import { measureScan, recordUsage, scanTelemetry } from '../recognition/scan-metrics.js';
+import { measureScan, mesurerGeneration } from '../recognition/scan-metrics.js';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { generateText, Output, type LanguageModel } from 'ai';
+import type { LanguageModel, UserContent } from 'ai';
 import type { z } from 'zod';
 
 import { MATCH_COMPACT_VARIANT_PROMPT } from './prompts/match-compact-variant.prompt.js';
 import { MATCH_CARD_VARIANT_PROMPT } from './prompts/match-card-variant.prompt.js';
-import { withGeminiModel } from '../recognition/gemini-model.js';
+import { genererStructure, withGeminiModel } from '../recognition/gemini-model.js';
 import { decodePhoto, decodeReferenceImage, resizeImage, type DecodedImage } from '../common/image-utils.js';
 import type { CardRecognition } from '../recognition/card-recognition.schema.js';
 import { CompactVariantSchema, OptcgCardsSchema, VariantPhotoAnalysisSchema, type VariantMetadata } from './card-variants.schema.js';
@@ -17,29 +17,28 @@ type VariantProduct = ReturnType<typeof illustrerProduit>;
 type Reference = DecodedImage & { product: VariantProduct };
 type Analysis = { message?: string; metadata: VariantMetadata; selectedProductId?: number; matchConfidence?: number };
 type CardInfo = { rarity: string; setName: string };
-type UserContent = Array<{ type: 'text'; text: string } | { type: 'file'; data: Buffer; mediaType: string }>;
 
 const FAST_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 @Injectable()
 export class CardVariantsService {
+  private readonly http = ky.create({ timeout: 10_000, retry: 0 });
   constructor(private readonly config: ConfigService) {}
 
   async variants(card: CardRecognition, guide: PriceResult, photo: string | DecodedImage): Promise<PriceResult> {
-    const variants = [...(guide.products ?? [])].sort((a, b) => a.id - b.id).map(illustrerProduit);
-    if (!variants.length) return guide;
+    const variantes = (guide.products ?? []).toSorted((a, b) => a.id - b.id).map(illustrerProduit);
+    if (!variantes.length) return guide;
 
-    const infoPromise = this.chargerInfosCarte(card.cardNumber);
-    const analysis = await this.analyserPhoto(photo, variants);
-    const cardInfo = await this.infosDisponibles(infoPromise);
-    return this.construireResultat(card, guide, variants, analysis, cardInfo);
+    const informations = this.chargerInfosCarte(card.cardNumber);
+    const analyse = await this.analyserPhoto(photo, variantes);
+    return this.construireResultat(card, guide, variantes, analyse, await this.infosDisponibles(informations));
   }
 
   private get optimized() { return this.config.get<string>('SCAN_OPTIMIZED') !== 'false'; }
   private get variantModel() { return this.config.get<string>('GEMINI_VARIANT_MODEL')?.trim() || FAST_GEMINI_MODEL; }
   private get threshold() {
-    const value = Number(this.config.get<string>('SCAN_MATCH_THRESHOLD') ?? '0.95');
-    return Number.isFinite(value) && value >= 0 && value <= 1 ? value : 0.95;
+    const seuil = Number(this.config.get<string>('SCAN_MATCH_THRESHOLD') ?? '0.95');
+    return Number.isFinite(seuil) && seuil >= 0 && seuil <= 1 ? seuil : 0.95;
   }
 
   private infosDisponibles(infos: Promise<CardInfo | undefined>) {
@@ -118,23 +117,26 @@ export class CardVariantsService {
     return { metadata: [] };
   }
 
-  private async comparerImages(image: DecodedImage, references: Reference[], detailed: boolean) {
-    const prepared = await Promise.all(references.map(async reference => ({
-      product: reference.product,
-      ...(detailed ? reference : await resizeImage(reference, 600, 840)),
-    })));
-    const userImage = detailed ? image : await resizeImage(image, 1000, 1400);
+  private async preparerComparaison(photo: DecodedImage, references: Reference[], detaille: boolean) {
+    const images = await Promise.all(references.map(async reference => detaille
+      ? reference
+      : { product: reference.product, ...await resizeImage(reference, 600, 840) }));
+    return { references: images, photo: detaille ? photo : await resizeImage(photo, 1000, 1400) };
+  }
+
+  private async comparerImages(image: DecodedImage, references: Reference[], detaille: boolean) {
+    const preparation = await this.preparerComparaison(image, references, detaille);
     return this.genererComparaison({
       system: MATCH_COMPACT_VARIANT_PROMPT,
       content: [
-        ...this.referenceMessages(prepared),
+        ...this.referenceMessages(preparation.references),
         { type: 'text', text: 'USER PHOTO' },
-        { type: 'file', data: userImage.data, mediaType: userImage.mediaType },
+        { type: 'file', data: preparation.photo.data, mediaType: preparation.photo.mediaType },
       ],
       schema: CompactVariantSchema,
-      stage: detailed ? 'compare-detailed' : 'compare',
-      resolution: detailed ? 'MEDIA_RESOLUTION_HIGH' : 'MEDIA_RESOLUTION_MEDIUM',
-      timeout: detailed ? 30_000 : 45_000,
+      stage: detaille ? 'compare-detailed' : 'compare',
+      resolution: detaille ? 'MEDIA_RESOLUTION_HIGH' : 'MEDIA_RESOLUTION_MEDIUM',
+      timeout: detaille ? 30_000 : 45_000,
     });
   }
 
@@ -146,25 +148,15 @@ export class CardVariantsService {
     resolution?: 'MEDIA_RESOLUTION_MEDIUM' | 'MEDIA_RESOLUTION_HIGH';
     timeout: number;
   }): Promise<z.infer<T>> {
-    const generate = (model: LanguageModel) => generateText({
-      model,
-      telemetry: scanTelemetry(options.stage),
-      system: options.system,
-      messages: [{ role: 'user', content: options.content }],
-      output: Output.object({ schema: options.schema }),
-      reasoning: 'low',
-      providerOptions: { google: { mediaResolution: options.resolution ?? 'MEDIA_RESOLUTION_MEDIUM' } },
-      maxOutputTokens: 2048,
-      maxRetries: 0,
-      abortSignal: AbortSignal.timeout(options.timeout),
+    const { timeout, ...generation } = options;
+    const generer = (model: LanguageModel) => genererStructure({
+      ...generation, model, abortSignal: AbortSignal.timeout(timeout),
     });
-    const run = () => withGeminiModel(this.config, generate, this.variantModel);
-    const response = await measureScan(options.stage, run);
-    recordUsage(options.stage, response.usage, response.response.modelId);
-    return response.output as z.infer<T>;
+    const reponse = await mesurerGeneration(options.stage, () => withGeminiModel(this.config, generer, this.variantModel));
+    return reponse.output as z.infer<T>;
   }
 
-  private referenceMessages(references: Reference[]): UserContent {
+  private referenceMessages(references: Reference[]): Exclude<UserContent, string> {
     return references.flatMap(({ product, data, mediaType }) => [
       { type: 'text', text: `CARDMARKET REFERENCE ID: ${product.id}` },
       { type: 'file', data, mediaType },
@@ -181,14 +173,13 @@ export class CardVariantsService {
 
   private async chargerInfosCarte(cardNumber: string): Promise<CardInfo | undefined> {
     try {
-      const payload = await ky.get(`https://optcgapi.com/api/sets/card/${encodeURIComponent(cardNumber)}/`, { timeout: 15_000, retry: 0 }).json();
-      const card = OptcgCardsSchema.parse(payload)[0];
-      return card ? { rarity: card.rarity, setName: card.set_name } : undefined;
+      const donnees = await this.http.get(`https://optcgapi.com/api/sets/card/${encodeURIComponent(cardNumber)}/`, { timeout: 15_000 }).json();
+      const carte = OptcgCardsSchema.parse(donnees)[0];
+      return carte ? { rarity: carte.rarity, setName: carte.set_name } : undefined;
     } catch { return undefined; }
   }
 
   private async reference(product: VariantProduct): Promise<DecodedImage> {
-    const response = await ky.get(product.imageUrl, { timeout: 10_000, retry: 0 });
-    return decodeReferenceImage(response);
+    return decodeReferenceImage(await this.http.get(product.imageUrl));
   }
 }

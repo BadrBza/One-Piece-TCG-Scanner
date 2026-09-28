@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateText, Output } from 'ai';
-import { decodeImage, type DecodedImage } from '../common/image-utils.js';
-import { measureScan, recordUsage, scanContext, scanTelemetry } from '../recognition/scan-metrics.js';
+import { preparerImagesScan, type DecodedImage } from '../common/image-utils.js';
+import { measureScan, mesurerGeneration, scanContext } from '../recognition/scan-metrics.js';
+import { genererStructure, reglagesLecture, verifierCleGemini } from '../recognition/gemini-model.js';
 import { throwReadableError } from '../recognition/recognition-errors.js';
 import { TcgdexProvider } from './tcgdex.provider.js';
 import { READ_POKEMON_PROMPT } from './read-pokemon.prompt.js';
@@ -29,10 +29,8 @@ export class PokemonService {
 
   scan(image: string, numberImage?: string) {
     return scanContext(async () => {
-      const photo = decodeImage(image, 7 * 1024 * 1024, 'Importe une photo JPG, PNG ou WebP de 7 Mo maximum.');
-      const grosPlan = numberImage === undefined ? undefined : decodeImage(numberImage, 3 * 1024 * 1024, 'Le gros plan du numéro est invalide ou trop volumineux.');
-      const cle = this.config.get<string>('GOOGLE_GENERATIVE_AI_API_KEY')?.trim();
-      if (!cle) throw new ServiceUnavailableException('La clé Gemini est absente. Configure GOOGLE_GENERATIVE_AI_API_KEY dans le fichier .env du serveur.');
+      const { photo, grosPlan } = preparerImagesScan(image, numberImage);
+      const cle = verifierCleGemini(this.config);
       // Un seul budget pour lecture illisible et numéro absent du catalogue.
       for (const secours of [false, true]) {
         const lecture = await this.lireCarte(photo, secours ? undefined : grosPlan, cle, secours);
@@ -66,22 +64,16 @@ export class PokemonService {
 
   private async lireCarte(photo: DecodedImage, grosPlan: DecodedImage | undefined, apiKey: string, secours: boolean) {
     const stage = secours ? 'pokemon-number-fallback' : 'pokemon-number-fast';
-    const modele = secours
-      ? this.config.get<string>('GEMINI_NUMBER_FALLBACK_MODEL')?.trim() || 'gemini-3.5-flash'
-      : this.config.get<string>('GEMINI_NUMBER_MODEL')?.trim() || 'gemini-3.5-flash-lite';
+    const { modele, reasoning } = reglagesLecture(this.config, secours);
     const google = createGoogleGenerativeAI({ apiKey });
-    const reponse = await measureScan(stage, () => generateText({
-      model: google(modele), system: READ_POKEMON_PROMPT, telemetry: scanTelemetry(stage),
-      messages: [{ role: 'user', content: [
+    const reponse = await mesurerGeneration(stage, () => genererStructure({
+      model: google(modele), system: READ_POKEMON_PROMPT, schema: PokemonReadingSchema, stage,
+      content: [
         { type: 'file', data: photo.data, mediaType: photo.mediaType },
         ...(grosPlan ? [{ type: 'file' as const, data: grosPlan.data, mediaType: grosPlan.mediaType }] : []),
-      ] }],
-      output: Output.object({ schema: PokemonReadingSchema }),
-      reasoning: secours || this.config.get<string>('SCAN_NUMBER_REASONING') === 'low' ? 'low' : 'minimal',
-      providerOptions: { google: { mediaResolution: 'MEDIA_RESOLUTION_HIGH' } },
-      maxOutputTokens: 2048, maxRetries: 0, abortSignal: AbortSignal.timeout(45_000),
+      ],
+      reasoning, resolution: 'MEDIA_RESOLUTION_HIGH', abortSignal: AbortSignal.timeout(45_000),
     })).catch(erreur => throwReadableError(erreur, this.logger));
-    recordUsage(stage, reponse.usage, reponse.response.modelId);
     return reponse.output;
   }
 }

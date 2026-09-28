@@ -25,6 +25,11 @@ export function scanTelemetry(stage: string) {
   return { isEnabled: true, recordInputs: false, recordOutputs: false, functionId: `scanner.${stage}` };
 }
 
-export function recordUsage(stage: string, usage: { inputTokens?: number; outputTokens?: number }, model: string) {
-  logger.log(JSON.stringify({ ...context.getStore(), stage, model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }));
+export async function mesurerGeneration<T extends {
+  usage: { inputTokens?: number; outputTokens?: number }; response: { modelId: string };
+}>(stage: string, generer: () => Promise<T>) {
+  const reponse = await measureScan(stage, generer);
+  const { usage, response } = reponse;
+  logger.log(JSON.stringify({ ...context.getStore(), stage, model: response.modelId, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }));
+  return reponse;
 }

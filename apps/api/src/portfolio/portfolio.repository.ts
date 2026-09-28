@@ -35,6 +35,7 @@ export class PortfolioRepository {
   }
 
   add(userId: number, card: AddPortfolioCard): PortfolioCard {
+    const identite = identiteCollection(card);
     const row = this.database.connection.prepare(`
       INSERT INTO portfolio_cards (
         user_id, game, identity_key, catalog_id, finish_id, card_number, name, cardmarket_product_id, image_url,
@@ -48,9 +49,9 @@ export class PortfolioRepository {
     `).get(
       userId,
       card.game,
-      card.game === 'pokemon' ? JSON.stringify([card.catalogId, card.language, card.finishId]) : String(card.cardmarketProductId),
-      card.game === 'pokemon' ? card.catalogId : null,
-      card.game === 'pokemon' ? card.finishId : null,
+      identite.cle,
+      identite.catalogue,
+      identite.finition,
       card.cardNumber,
       card.name,
       card.cardmarketProductId ?? null,
@@ -61,7 +62,7 @@ export class PortfolioRepository {
       card.expansion ?? null,
       card.trendPrice ?? null,
       card.trendPrice ?? null,
-      card.game === 'pokemon' ? card.priceUpdatedAt ?? null : null,
+      identite.datePrix,
     ) as PortfolioRow;
 
     return toPortfolioCard(row);
@@ -102,6 +103,16 @@ export class PortfolioRepository {
       .run(prix, date, catalogId, langue, finition);
   }
 
+}
+
+function identiteCollection(carte: AddPortfolioCard) {
+  if (carte.game === 'pokemon') {
+    return {
+      cle: JSON.stringify([carte.catalogId, carte.language, carte.finishId]),
+      catalogue: carte.catalogId, finition: carte.finishId, datePrix: carte.priceUpdatedAt ?? null,
+    };
+  }
+  return { cle: String(carte.cardmarketProductId), catalogue: null, finition: null, datePrix: null };
 }
 
 function toPortfolioCard(row: PortfolioRow): PortfolioCard {

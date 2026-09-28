@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableE
 import ky, { HTTPError } from 'ky';
 import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
-import { construireCarte, referencePokemon } from './pokemon-card.js';
+import { construireCandidate, construireCarte } from './pokemon-card.js';
 import {
   cleNom, cleNumero, languesPokemon, TcgCardBriefSchema, TcgCardSchema, TcgSetBriefSchema, TcgSetSchema,
   type PokemonCandidate, type PokemonLanguage, type PokemonLookup, type TcgSet,
@@ -27,11 +27,7 @@ export class TcgdexProvider {
       if (!this.serieCompatible(serie, recherche.set, total)) return [];
       return serie.cards.filter(carte => cleNumero(carte.localId) === cleNumero(numero)
         && (!recherche.name || cleNom(carte.name) === cleNom(recherche.name)))
-        .map(carte => ({
-          catalogId: carte.id, name: carte.name, language: recherche.language,
-          cardNumber: referencePokemon(carte.localId, serie), expansion: serie.name,
-          imageUrl: carte.image && `${carte.image}/high.webp`,
-        }));
+        .map(carte => construireCandidate(carte, recherche.language, serie));
     });
     return [...new Map(candidates.map(carte => [`${langue}:${carte.catalogId}`, carte])).values()];
   }
@@ -46,19 +42,25 @@ export class TcgdexProvider {
 
   private async seriesCandidates(recherche: PokemonLookup, numero: string, total?: string) {
     const langue = languesPokemon[recherche.language];
-    const sets = (parametres: Record<string, string>) => this.charger(`${langue}/sets?${new URLSearchParams(parametres)}`, z.array(TcgSetBriefSchema));
-    const resumes = recherche.set
-      ? (await Promise.all([
-        sets({ id: recherche.set }), sets({ name: recherche.set }),
-        sets({ 'abbreviation.official': recherche.set }), sets({ 'abbreviation.localized': recherche.set }),
-      ])).flat()
-      : total && /^\d+$/.test(total)
-        ? await sets({ 'cardCount.official': `eq:${Number(total)}` })
-        : undefined;
-    const identifiants = resumes?.map(serie => serie.id) ?? await this.seriesParNom(recherche, numero);
+    const identifiants = await this.identifiantsSeries(recherche, numero, total);
     const uniques = [...new Set(identifiants)];
     if (uniques.length > 20) throw new BadRequestException('Précise l’extension ou le nom pour limiter les résultats Pokémon.');
     return Promise.all(uniques.map(id => this.charger(`${langue}/sets/${encodeURIComponent(id)}`, TcgSetSchema)));
+  }
+
+  private async identifiantsSeries(recherche: PokemonLookup, numero: string, total?: string) {
+    const langue = languesPokemon[recherche.language];
+    const sets = (parametres: Record<string, string>) => this.charger(`${langue}/sets?${new URLSearchParams(parametres)}`, z.array(TcgSetBriefSchema));
+    if (recherche.set) {
+      const champs = ['id', 'name', 'abbreviation.official', 'abbreviation.localized'];
+      const series = await Promise.all(champs.map(champ => sets({ [champ]: recherche.set })));
+      return series.flatMap(resultat => resultat.map(serie => serie.id));
+    }
+    if (total && /^\d+$/.test(total)) {
+      const series = await sets({ 'cardCount.official': `eq:${Number(total)}` });
+      return series.map(serie => serie.id);
+    }
+    return this.seriesParNom(recherche, numero);
   }
 
   private async seriesParNom(recherche: PokemonLookup, numero: string) {
@@ -78,8 +80,8 @@ export class TcgdexProvider {
     if (/^\d+$/.test(total)) return serie.cardCount.official === Number(total);
     const galerie = /^([A-Z]+)(\d+)$/.exec(total);
     // TG/GG ont leur propre dénominateur, distinct du total de l’extension.
-    return galerie ? serie.cards.filter(carte => carte.localId.toUpperCase().startsWith(galerie[1])).length === Number(galerie[2])
-      : [serie.id, serie.abbreviation?.official].some(code => code && cleNom(code) === cleNom(total));
+    if (galerie) return serie.cards.filter(carte => carte.localId.toUpperCase().startsWith(galerie[1])).length === Number(galerie[2]);
+    return [serie.id, serie.abbreviation?.official].some(code => code && cleNom(code) === cleNom(total));
   }
 
   private async charger<T extends z.ZodType<object>>(chemin: string, schema: T, actualiser = false): Promise<z.output<T>> {
