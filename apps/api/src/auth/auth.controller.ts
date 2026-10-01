@@ -35,8 +35,8 @@ export class AuthController {
 
   @Get('me')
   @Header('Cache-Control', 'no-store')
-  me(@Req() request: FastifyRequest): AuthUser {
-    const user = this.auth.currentUser(request.cookies.access_token);
+  async me(@Req() request: FastifyRequest): Promise<AuthUser> {
+    const user = await this.auth.currentUser(request.cookies.access_token);
     if (!user) throw new UnauthorizedException('Reconnecte-toi pour continuer.');
     return user;
   }
@@ -45,8 +45,8 @@ export class AuthController {
   @Throttle({ default: { limit: 120 } })
   @UseGuards(ThrottlerGuard)
   @Header('Cache-Control', 'no-store')
-  refresh(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
-    setAuthCookies(reply, this.sessions.refresh(request.cookies.refresh_token));
+  async refresh(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+    setAuthCookies(reply, await this.sessions.refresh(request.cookies.refresh_token));
     return { refreshed: true };
   }
 
@@ -57,9 +57,9 @@ export class AuthController {
   @Post('verify')
   @UseGuards(ThrottlerGuard)
   @Header('Cache-Control', 'no-store')
-  verify(@Body() body: unknown, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply): AuthUser {
+  async verify(@Body() body: unknown, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply): Promise<AuthUser> {
     const { code } = valider(VerificationSchema, body, 'Saisis le code à 6 chiffres.');
-    const result = this.verification.verify(request.cookies.pending_registration, code);
+    const result = await this.verification.verify(request.cookies.pending_registration, code);
     return this.ouvrirSession(request, reply, result);
   }
 
@@ -70,14 +70,14 @@ export class AuthController {
 
   @Post('logout')
   @Header('Cache-Control', 'no-store')
-  logout(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
-    this.sessions.logout(request.cookies.access_token, request.cookies.refresh_token);
+  async logout(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+    await this.sessions.logout(request.cookies.access_token, request.cookies.refresh_token);
     clearAuthCookies(reply);
     return { loggedOut: true };
   }
 
-  private ouvrirSession(request: FastifyRequest, reply: FastifyReply, session: AuthenticatedSession) {
-    this.sessions.logout(request.cookies.access_token, request.cookies.refresh_token);
+  private async ouvrirSession(request: FastifyRequest, reply: FastifyReply, session: AuthenticatedSession) {
+    await this.sessions.logout(request.cookies.access_token, request.cookies.refresh_token);
     setAuthCookies(reply, session.tokens);
     return session.user;
   }

@@ -1,0 +1,114 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Utilisateur {
+  id                   Int                       @id @default(autoincrement())
+  email                String                    @unique
+  motDePasse           String                    @map("password_hash")
+  creation             String                    @default(dbgenerated("CURRENT_TIMESTAMP")) @map("created_at")
+  pseudo               String?                   @map("nickname")
+  avatar               String?
+  emailVerifieLe       String?                   @map("email_verified_at")
+  dispenseVerification Int                       @default(0) @map("verification_exempt")
+  sessions             SessionAuthentification[]
+  anciennesSessions    AncienneSession[]
+  cartes               CarteCollection[]
+
+  @@map("users")
+}
+
+model AncienneSession {
+  empreinte     String      @id @map("token_hash")
+  utilisateurId Int         @map("user_id")
+  expiration    String      @map("expires_at")
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("sessions")
+}
+
+model SessionAuthentification {
+  id              String                @id
+  utilisateurId   Int                   @map("user_id")
+  expiration      BigInt                @map("expires_at")
+  utilisateur     Utilisateur           @relation(fields: [utilisateurId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  acces           JetonAcces[]
+  renouvellements JetonRenouvellement[]
+
+  @@map("auth_sessions")
+}
+
+model JetonAcces {
+  empreinte  String                  @id @map("hash")
+  sessionId  String                  @map("session_id")
+  expiration BigInt                  @map("expires_at")
+  session    SessionAuthentification @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sessionId], map: "access_session")
+  @@map("access_tokens")
+}
+
+model JetonRenouvellement {
+  empreinte String                  @id @map("hash")
+  sessionId String                  @map("session_id")
+  utiliseLe BigInt?                 @map("used_at")
+  session   SessionAuthentification @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sessionId], map: "refresh_session")
+  @@map("refresh_tokens")
+}
+
+model InscriptionEnAttente {
+  empreinte      String  @id @map("hash")
+  email          String
+  motDePasse     String  @map("password_hash")
+  pseudo         String  @map("nickname")
+  avatar         String?
+  expiration     BigInt  @map("expires_at")
+  empreinteCode  String? @map("code_hash")
+  expirationCode BigInt  @default(0) @map("code_expires_at")
+  tentatives     Int     @default(0) @map("attempts")
+
+  @@map("pending_registrations")
+}
+
+model EnvoiVerification {
+  id    Int    @id @default(autoincrement())
+  email String
+  envoi BigInt @map("sent_at")
+
+  @@index([email, envoi], map: "verification_sends_email")
+  @@map("verification_sends")
+}
+
+model CarteCollection {
+  id                  Int         @id @default(autoincrement())
+  utilisateurId       Int         @map("user_id")
+  jeu                 String      @default("one-piece") @map("game")
+  identite            String      @map("identity_key")
+  catalogueId         String?     @map("catalog_id")
+  finitionId          String?     @map("finish_id")
+  numero              String      @map("card_number")
+  nom                 String      @map("name")
+  produitCardmarketId Int?        @map("cardmarket_product_id")
+  imageUrl            String?     @map("image_url")
+  langue              String?     @map("language")
+  rarete              String?     @map("rarity")
+  variante            String?     @map("variant")
+  extension           String?     @map("expansion")
+  cote                Float?      @map("trend_price")
+  coteActualiseeLe    String?     @map("price_updated_at")
+  quantite            Int         @default(1) @map("quantity")
+  ajout               String      @default(dbgenerated("CURRENT_TIMESTAMP")) @map("added_at")
+  utilisateur         Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([utilisateurId, jeu, identite])
+  @@map("portfolio_cards")
+}

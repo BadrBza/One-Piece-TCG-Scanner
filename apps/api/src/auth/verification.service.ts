@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
-import { VerificationRepository, type InscriptionEnAttente } from './verification.repository.js';
+import { VerificationRepository } from './verification.repository.js';
+import type { InscriptionEnAttente, Prisma } from '../generated/prisma/client.js';
 import { EmailService } from './email.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { AuthRepository } from './auth.repository.js';
@@ -18,13 +19,13 @@ export class VerificationService {
 
   async register(inscription: Registration): Promise<PendingVerification & { token: string; expiresAt: number }> {
     const configuration = this.configurationEnvoi();
-    if (this.users.findUserByEmail(inscription.email)) throw new ConflictException('Un compte existe déjà avec cette adresse e-mail.');
+    if (await this.users.findUserByEmail(inscription.email)) throw new ConflictException('Un compte existe déjà avec cette adresse e-mail.');
     const empreinte = await hashPassword(inscription.password);
     const avatar = inscription.avatar ? await prepareAvatar(inscription.avatar) : null;
     const token = newToken();
     const expiresAt = Date.now() + 24 * 60 * 60_000;
-    this.inscriptions.creer({ hash: tokenHash(token), email: inscription.email, password_hash: empreinte,
-      nickname: inscription.nickname, avatar, expires_at: expiresAt });
+    await this.inscriptions.creer({ empreinte: tokenHash(token), email: inscription.email, motDePasse: empreinte,
+      pseudo: inscription.nickname, avatar, expiration: BigInt(expiresAt) });
     // Conserver le cookie d'inscription pour permettre un renvoi après un échec SMTP.
     const emailSent = await this.envoyerCode(token, configuration).then(() => true, erreur => {
       if (erreur instanceof ServiceUnavailableException || erreur instanceof HttpException && erreur.getStatus() === 429) return false;
@@ -33,62 +34,63 @@ export class VerificationService {
     return { token, expiresAt, status: 'verification_required', email: inscription.email, emailSent };
   }
 
-  status(token?: string): PendingVerification | null {
-    const inscription = this.inscriptionEnAttente(token);
-    return inscription ? { status: 'verification_required', email: inscription.email, emailSent: inscription.code_hash !== null } : null;
+  async status(token?: string): Promise<PendingVerification | null> {
+    const inscription = await this.inscriptionEnAttente(token);
+    return inscription ? { status: 'verification_required', email: inscription.email, emailSent: inscription.empreinteCode !== null } : null;
   }
 
   async send(token?: string) {
     return this.envoyerCode(token, this.configurationEnvoi());
   }
 
-  verify(token: string | undefined, code: string): AuthenticatedSession {
+  async verify(token: string | undefined, code: string): Promise<AuthenticatedSession> {
     // Valider aussi les tentatives échouées ; lever l'erreur seulement après la transaction.
-    const resultat = this.database.transaction(() => {
-      const inscription = this.inscriptionEnAttente(token);
-      if (!inscription || !inscription.code_hash || inscription.attempts >= 5 || inscription.code_expires_at <= Date.now()) return undefined;
-      this.inscriptions.compterTentative(inscription.hash);
-      if (!timingSafeEqual(Buffer.from(inscription.code_hash, 'hex'), Buffer.from(this.codeHash(inscription.hash, code), 'hex'))) return undefined;
-      const user = this.users.createUser(inscription.email, inscription.password_hash, inscription.nickname, inscription.avatar);
+    const resultat = await this.database.client.$transaction(async transaction => {
+      const inscription = await this.inscriptionEnAttente(token, transaction);
+      if (!inscription || !inscription.empreinteCode || inscription.tentatives >= 5 || inscription.expirationCode <= Date.now()) return undefined;
+      await this.inscriptions.compterTentative(inscription.empreinte, transaction);
+      if (!timingSafeEqual(Buffer.from(inscription.empreinteCode, 'hex'), Buffer.from(this.codeHash(inscription.empreinte, code), 'hex'))) return undefined;
+      const user = await this.users.createUser(inscription.email, inscription.motDePasse, inscription.pseudo, inscription.avatar, transaction);
       if (!user) {
-        this.inscriptions.supprimer(inscription.hash);
+        await this.inscriptions.supprimer(inscription.empreinte, transaction);
         return undefined;
       }
-      this.inscriptions.supprimerPourEmail(inscription.email);
-      return { user, tokens: this.sessions.create(user.id) };
+      await this.inscriptions.supprimerPourEmail(inscription.email, transaction);
+      return { user, tokens: await this.sessions.creerDansTransaction(user.id, transaction) };
     });
     if (!resultat) throw new BadRequestException('Code invalide, expiré ou trop de tentatives. Demande un nouveau code ou connecte-toi si ton compte existe déjà.');
     return resultat;
   }
 
   private async envoyerCode(token: string | undefined, configuration: ReturnType<VerificationService['configurationEnvoi']>) {
-    const inscription = this.inscriptionEnAttente(token);
-    if (!inscription) throw new BadRequestException('Cette inscription a expiré. Recommence l’inscription.');
-    const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
-    const empreinte = this.codeHash(inscription.hash, code, configuration.secret);
-    this.reserverEnvoi(inscription, empreinte);
+    const { inscription, code, empreinte } = await this.database.client.$transaction(async transaction => {
+      const inscription = await this.inscriptionEnAttente(token, transaction);
+      if (!inscription) throw new BadRequestException('Cette inscription a expiré. Recommence l’inscription.');
+      const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+      const empreinte = this.codeHash(inscription.empreinte, code, configuration.secret);
+      await this.reserverEnvoi(inscription, empreinte, transaction);
+      return { inscription, code, empreinte };
+    });
     try {
       await this.emails.envoyerCode(inscription.email, code, configuration.smtp);
     } catch {
-      this.inscriptions.annulerCode(inscription.hash, empreinte);
+      await this.inscriptions.annulerCode(inscription.empreinte, empreinte);
       throw new ServiceUnavailableException('L’e-mail n’a pas pu être envoyé. Patiente une minute puis réessaie.');
     }
     return { sent: true };
   }
 
-  private reserverEnvoi(inscription: InscriptionEnAttente, empreinte: string) {
-    this.database.transaction(() => {
-      const maintenant = Date.now();
-      const usage = this.inscriptions.compterEnvois(inscription.email, maintenant);
-      if (usage.count >= 5 || usage.last !== null && maintenant - usage.last < 60_000) {
-        throw new HttpException('Patiente au moins une minute entre les envois (5 maximum par heure).', 429);
-      }
-      this.inscriptions.enregistrerCode(inscription, empreinte, maintenant);
-    });
+  private async reserverEnvoi(inscription: InscriptionEnAttente, empreinte: string, transaction: Prisma.TransactionClient) {
+    const maintenant = Date.now();
+    const usage = await this.inscriptions.compterEnvois(inscription.email, maintenant, transaction);
+    if (usage._count >= 5 || usage._max.envoi !== null && maintenant - Number(usage._max.envoi) < 60_000) {
+      throw new HttpException('Patiente au moins une minute entre les envois (5 maximum par heure).', 429);
+    }
+    await this.inscriptions.enregistrerCode(inscription, empreinte, maintenant, transaction);
   }
 
-  private inscriptionEnAttente(token?: string) {
-    return token ? this.inscriptions.trouver(tokenHash(token)) : undefined;
+  private inscriptionEnAttente(token?: string, transaction?: Prisma.TransactionClient) {
+    return token ? this.inscriptions.trouver(tokenHash(token), transaction) : undefined;
   }
 
   private configurationEnvoi() {

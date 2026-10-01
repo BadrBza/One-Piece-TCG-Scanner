@@ -13,7 +13,7 @@ Scanne tes cartes One Piece et Pokémon, consulte leur cote Cardmarket et gère 
 
 ## Installation
 
-Prérequis : **Node.js 22.13+** et **pnpm**.
+Prérequis : **Node.js 22.16+** et **pnpm**.
 
 ```powershell
 pnpm install
@@ -23,8 +23,11 @@ Copy-Item .env.example .env
 Renseigne `GOOGLE_GENERATIVE_AI_API_KEY` dans `.env` pour utiliser le scan photo. Les autres réglages sont disponibles dans `.env.example`.
 
 ```powershell
+pnpm --filter @opscan/api db:prepare
 pnpm dev
 ```
+
+La préparation Prisma se lance API arrêtée et sauvegarde la base existante. [Migration et restauration](docs/database.md).
 
 Configure le SMTP pour recevoir le code d’inscription : [guide d’authentification](docs/authentication.md). Ouvre <http://localhost:5173>. La recherche par référence fonctionne sans clé Gemini.
 
@@ -41,7 +44,7 @@ Configure le SMTP pour recevoir le code d’inscription : [guide d’authentific
 
 React, TypeScript et Tailwind CSS côté interface ; NestJS, AI SDK et Gemini côté API.
 
-Les comptes et collections sont conservés dans SQLite (`apps/api/data/app.db` par défaut). Sauvegarde cette base pour conserver tes données.
+Les comptes et collections sont gérés par Prisma dans SQLite (`apps/api/data/app.db` par défaut).
 
 Les cotes sont des estimations Cardmarket, sans filtre de langue ou d’état ni frais de port. Les résultats du scan restent à vérifier.
 

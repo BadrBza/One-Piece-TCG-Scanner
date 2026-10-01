@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nest build",
-    "start": "nest start",
-    "start:dev": "nest start --watch"
+    "build": "prisma generate && nest build",
+    "start": "prisma generate && nest start",
+    "start:dev": "prisma generate && nest start --watch",
+    "db:generate": "prisma generate",
+    "db:prepare": "node --experimental-strip-types scripts/prepare-database.ts",
+    "db:migrate": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "test:database": "tsc -p tsconfig.verification.json && node --experimental-strip-types --test test/prisma-migration.test.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.63",
@@ -17,6 +22,8 @@
     "@nestjs/platform-fastify": "^12.0.1",
     "@nestjs/schedule": "^12.0.1",
     "@nestjs/throttler": "^6.7.0",
+    "@prisma/adapter-better-sqlite3": "7.10.0",
+    "@prisma/client": "7.10.0",
     "ai": "^7.0.92",
     "fastify": "^5.12.3",
     "ky": "^2.1.0",
@@ -33,6 +40,7 @@
     "@nestjs/testing": "^12.0.1",
     "@types/node": "^24.13.3",
     "@types/nodemailer": "^8.0.2",
+    "prisma": "7.10.0",
     "typescript": "~6.0.3"
   }
 }

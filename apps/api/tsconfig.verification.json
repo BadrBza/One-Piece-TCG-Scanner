@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2024",
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["scripts/prepare-database.ts", "test/prisma-migration.test.ts"]
+}

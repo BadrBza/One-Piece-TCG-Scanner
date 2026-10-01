@@ -1,137 +1,104 @@
 import { Injectable } from '@nestjs/common';
-
 import { DatabaseService } from '../database/database.service.js';
+import type { CarteCollection, Prisma } from '../generated/prisma/client.js';
 import type { AddPortfolioCard, PortfolioCard } from './portfolio.schema.js';
 import type { PokemonLanguage } from '../pokemon/pokemon.schema.js';
-
-type PortfolioRow = {
-  id: number;
-  game: 'one-piece' | 'pokemon';
-  catalog_id: string | null;
-  finish_id: string | null;
-  card_number: string;
-  name: string;
-  cardmarket_product_id: number | null;
-  image_url: string | null;
-  language: string | null;
-  rarity: string | null;
-  variant: string | null;
-  expansion: string | null;
-  trend_price: number | null;
-  price_updated_at: string | null;
-  quantity: number;
-  added_at: string;
-};
 
 @Injectable()
 export class PortfolioRepository {
   constructor(private readonly database: DatabaseService) {}
 
-  list(userId: number): PortfolioCard[] {
-    const rows = this.database.connection.prepare(
-      'SELECT * FROM portfolio_cards WHERE user_id = ? ORDER BY added_at DESC, id DESC',
-    ).all(userId) as PortfolioRow[];
-    return rows.map(toPortfolioCard);
+  async list(utilisateurId: number): Promise<PortfolioCard[]> {
+    const cartes = await this.database.client.$transaction(transaction => transaction.carteCollection.findMany({
+      where: { utilisateurId }, orderBy: [{ ajout: 'desc' }, { id: 'desc' }],
+    }));
+    return cartes.map(toPortfolioCard);
   }
 
-  add(userId: number, card: AddPortfolioCard): PortfolioCard {
-    const identite = identiteCollection(card);
-    const row = this.database.connection.prepare(`
-      INSERT INTO portfolio_cards (
-        user_id, game, identity_key, catalog_id, finish_id, card_number, name, cardmarket_product_id, image_url,
-        language, rarity, variant, expansion, trend_price, price_updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE COALESCE(?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) END)
-      ON CONFLICT(user_id, game, identity_key) DO UPDATE SET
-        quantity = quantity + 1,
-        trend_price = COALESCE(excluded.trend_price, portfolio_cards.trend_price),
-        price_updated_at = COALESCE(excluded.price_updated_at, portfolio_cards.price_updated_at)
-      RETURNING *
-    `).get(
-      userId,
-      card.game,
-      identite.cle,
-      identite.catalogue,
-      identite.finition,
-      card.cardNumber,
-      card.name,
-      card.cardmarketProductId ?? null,
-      card.imageUrl ?? null,
-      card.language ?? null,
-      card.rarity ?? null,
-      card.variant ?? null,
-      card.expansion ?? null,
-      card.trendPrice ?? null,
-      card.trendPrice ?? null,
-      identite.datePrix,
-    ) as PortfolioRow;
-
-    return toPortfolioCard(row);
+  async add(utilisateurId: number, carte: AddPortfolioCard): Promise<PortfolioCard> {
+    const identite = identiteCollection(carte);
+    const cle = { utilisateurId, jeu: carte.game, identite: identite.cle };
+    const prix = carte.trendPrice == null ? {} : {
+      cote: carte.trendPrice, coteActualiseeLe: identite.datePrix ?? new Date().toISOString(),
+    };
+    const resultat = await this.database.client.$transaction(transaction => transaction.carteCollection.upsert({
+      where: { utilisateurId_jeu_identite: cle },
+      create: {
+        ...cle, ...prix, catalogueId: identite.catalogue, finitionId: identite.finition,
+        numero: carte.cardNumber, nom: carte.name, produitCardmarketId: carte.cardmarketProductId,
+        imageUrl: carte.imageUrl, langue: carte.language, rarete: carte.rarity,
+        variante: carte.variant, extension: carte.expansion,
+      },
+      update: { quantite: { increment: 1 }, ...prix },
+    }));
+    return toPortfolioCard(resultat);
   }
 
-  remove(userId: number, id: number): boolean {
-    return this.database.connection.prepare(
-      'DELETE FROM portfolio_cards WHERE id = ? AND user_id = ?',
-    ).run(id, userId).changes > 0;
+  async remove(utilisateurId: number, id: number) {
+    const { count } = await this.database.client.$transaction(transaction => transaction.carteCollection.deleteMany({ where: { id, utilisateurId } }));
+    return count > 0;
   }
 
-  productIds(olderThan?: string): number[] {
-    const where = olderThan ? 'AND (price_updated_at IS NULL OR price_updated_at < ?)' : '';
-    const rows = this.database.connection.prepare(
-      `SELECT DISTINCT cardmarket_product_id FROM portfolio_cards WHERE game = 'one-piece' ${where}`,
-    ).all(...(olderThan ? [olderThan] : [])) as Array<{ cardmarket_product_id: number }>;
-    return rows.map(row => row.cardmarket_product_id);
+  async productIds(avant?: string) {
+    const cartes = await this.database.client.$transaction(transaction => transaction.carteCollection.findMany({
+      where: { jeu: 'one-piece', ...prixAnterieur(avant) },
+      distinct: ['produitCardmarketId'], select: { produitCardmarketId: true },
+    }));
+    return cartes.map(carte => carte.produitCardmarketId!);
   }
 
-  updatePrice(productId: number, trendPrice: number, updatedAt: string) {
-    this.database.connection.prepare(`
-      UPDATE portfolio_cards
-      SET trend_price = ?, price_updated_at = ?
-      WHERE game = 'one-piece' AND cardmarket_product_id = ?
-    `).run(trendPrice, updatedAt, productId);
+  updatePrice(produitCardmarketId: number, cote: number, coteActualiseeLe: string) {
+    return this.database.client.$transaction(transaction => transaction.carteCollection.updateMany({
+      where: { jeu: 'one-piece', produitCardmarketId }, data: { cote, coteActualiseeLe },
+    }));
   }
 
-  cartesPokemon(olderThan?: string) {
-    const condition = olderThan ? 'AND (price_updated_at IS NULL OR price_updated_at < ?)' : '';
-    return this.database.connection.prepare(`
-      SELECT DISTINCT catalog_id AS catalogId, language FROM portfolio_cards WHERE game = 'pokemon' ${condition}
-    `).all(...(olderThan ? [olderThan] : [])) as Array<{ catalogId: string; language: PokemonLanguage }>;
+  async cartesPokemon(avant?: string) {
+    const cartes = await this.database.client.$transaction(transaction => transaction.carteCollection.findMany({
+      where: { jeu: 'pokemon', ...prixAnterieur(avant) },
+      distinct: ['catalogueId', 'langue'], select: { catalogueId: true, langue: true },
+    }));
+    return cartes.map(carte => ({ catalogId: carte.catalogueId!, language: carte.langue as PokemonLanguage }));
   }
 
-  actualiserPokemon(catalogId: string, langue: PokemonLanguage, finition: string, prix: number, date: string) {
-    this.database.connection.prepare(`UPDATE portfolio_cards SET trend_price = ?, price_updated_at = ?
-      WHERE game = 'pokemon' AND catalog_id = ? AND language = ? AND finish_id = ?`)
-      .run(prix, date, catalogId, langue, finition);
+  actualiserPokemon(catalogueId: string, langue: PokemonLanguage, finitionId: string, cote: number, coteActualiseeLe: string) {
+    return this.database.client.$transaction(transaction => transaction.carteCollection.updateMany({
+      where: { jeu: 'pokemon', catalogueId, langue, finitionId }, data: { cote, coteActualiseeLe },
+    }));
   }
+}
 
+function prixAnterieur(avant?: string): Prisma.CarteCollectionWhereInput {
+  return avant ? { OR: [{ coteActualiseeLe: null }, { coteActualiseeLe: { lt: avant } }] } : {};
 }
 
 function identiteCollection(carte: AddPortfolioCard) {
   if (carte.game === 'pokemon') {
     return {
       cle: JSON.stringify([carte.catalogId, carte.language, carte.finishId]),
-      catalogue: carte.catalogId, finition: carte.finishId, datePrix: carte.priceUpdatedAt ?? null,
+      catalogue: carte.catalogId, finition: carte.finishId, datePrix: carte.priceUpdatedAt,
     };
   }
-  return { cle: String(carte.cardmarketProductId), catalogue: null, finition: null, datePrix: null };
+  return { cle: String(carte.cardmarketProductId), catalogue: null, finition: null, datePrix: undefined };
 }
 
-function toPortfolioCard(row: PortfolioRow): PortfolioCard {
+function toPortfolioCard(ligne: CarteCollection): PortfolioCard {
   const carte = {
-    id: row.id,
-    cardNumber: row.card_number,
-    name: row.name,
-    cardmarketProductId: row.cardmarket_product_id ?? undefined,
-    imageUrl: row.image_url ?? undefined,
-    language: row.language ?? undefined,
-    rarity: row.rarity ?? undefined,
-    variant: row.variant ?? undefined,
-    expansion: row.expansion ?? undefined,
-    trendPrice: row.trend_price ?? undefined,
-    quantity: row.quantity,
-    addedAt: row.added_at,
-    priceUpdatedAt: row.price_updated_at ?? undefined,
+    id: ligne.id,
+    cardNumber: ligne.numero,
+    name: ligne.nom,
+    cardmarketProductId: ligne.produitCardmarketId ?? undefined,
+    imageUrl: ligne.imageUrl ?? undefined,
+    language: ligne.langue ?? undefined,
+    rarity: ligne.rarete ?? undefined,
+    variant: ligne.variante ?? undefined,
+    expansion: ligne.extension ?? undefined,
+    trendPrice: ligne.cote ?? undefined,
+    quantity: ligne.quantite,
+    addedAt: ligne.ajout,
+    priceUpdatedAt: ligne.coteActualiseeLe ?? undefined,
   };
-  return row.game === 'pokemon'
-    ? { ...carte, game: 'pokemon', catalogId: row.catalog_id!, finishId: row.finish_id!, language: row.language as PokemonLanguage }
-    : { ...carte, game: 'one-piece', cardmarketProductId: row.cardmarket_product_id! };
+  return ligne.jeu === 'pokemon'
+    ? { ...carte, game: 'pokemon', catalogId: ligne.catalogueId!, finishId: ligne.finitionId!, language: ligne.langue as PokemonLanguage }
+    : { ...carte, game: 'one-piece', cardmarketProductId: ligne.produitCardmarketId! };
 }

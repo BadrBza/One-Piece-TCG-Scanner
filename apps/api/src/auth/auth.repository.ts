@@ -1,24 +1,28 @@
 import { Injectable } from '@nestjs/common';
-
 import { DatabaseService } from '../database/database.service.js';
-import type { AuthUser } from './auth.schema.js';
+import { Prisma, type Utilisateur } from '../generated/prisma/client.js';
 
-type UserRow = AuthUser & { password_hash: string; email_verified_at: string | null; verification_exempt: number };
+export function profilUtilisateur({ id, email, pseudo, avatar }: Pick<Utilisateur, 'id' | 'email' | 'pseudo' | 'avatar'>) {
+  return { id, email, nickname: pseudo, avatar };
+}
 
 @Injectable()
 export class AuthRepository {
   constructor(private readonly database: DatabaseService) {}
 
-  findUserByEmail(email: string): UserRow | undefined {
-    return this.database.connection.prepare(
-      'SELECT id, email, nickname, avatar, password_hash, email_verified_at, verification_exempt FROM users WHERE email = ?',
-    ).get(email) as UserRow | undefined;
+  findUserByEmail(email: string) {
+    return this.database.client.$transaction(transaction => transaction.utilisateur.findUnique({ where: { email } }));
   }
 
-  createUser(email: string, passwordHash: string, nickname: string, avatar: string | null): AuthUser | undefined {
-    return this.database.connection.prepare(
-      'INSERT INTO users (email, password_hash, nickname, avatar, email_verified_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING RETURNING id, email, nickname, avatar',
-    ).get(email, passwordHash, nickname, avatar, new Date().toISOString()) as AuthUser | undefined;
+  async createUser(email: string, motDePasse: string, pseudo: string, avatar: string | null, transaction: Prisma.TransactionClient) {
+    try {
+      const utilisateur = await transaction.utilisateur.create({
+        data: { email, motDePasse, pseudo, avatar, emailVerifieLe: new Date().toISOString() },
+      });
+      return profilUtilisateur(utilisateur);
+    } catch (erreur) {
+      if (erreur instanceof Prisma.PrismaClientKnownRequestError && erreur.code === 'P2002') return undefined;
+      throw erreur;
+    }
   }
-
 }

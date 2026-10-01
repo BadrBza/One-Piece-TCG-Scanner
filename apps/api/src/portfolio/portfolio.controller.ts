@@ -33,8 +33,8 @@ export class PortfolioController {
   }
 
   @Delete(':id')
-  remove(@Req() request: AuthenticatedRequest, @Param('id', ParseIntPipe) id: number) {
-    if (!this.portfolio.remove(request.user.id, id)) {
+  async remove(@Req() request: AuthenticatedRequest, @Param('id', ParseIntPipe) id: number) {
+    if (!await this.portfolio.remove(request.user.id, id)) {
       throw new NotFoundException('Cette carte ne fait pas partie de la collection.');
     }
     return { removed: true };

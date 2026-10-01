@@ -18,17 +18,17 @@ export class PortfolioPriceUpdater implements OnApplicationBootstrap {
     private readonly pokemon: TcgdexProvider,
   ) {}
 
-  onApplicationBootstrap() {
+  async onApplicationBootstrap() {
     const limite = new Date(Date.now() - JOUR).toISOString();
-    return this.refresh(this.portfolio.productIds(limite), this.portfolio.cartesPokemon(limite));
+    return this.refresh(await this.portfolio.productIds(limite), await this.portfolio.cartesPokemon(limite));
   }
 
   @Cron('0 12 * * *', { timeZone: 'Europe/Brussels' })
-  refreshDaily() {
-    return this.refresh(this.portfolio.productIds(), this.portfolio.cartesPokemon());
+  async refreshDaily() {
+    return this.refresh(await this.portfolio.productIds(), await this.portfolio.cartesPokemon());
   }
 
-  async refresh(produits: number[], cartesPokemon: ReturnType<PortfolioRepository['cartesPokemon']> = []) {
+  async refresh(produits: number[], cartesPokemon: Awaited<ReturnType<PortfolioRepository['cartesPokemon']>> = []) {
     if (this.actualisationEnCours || produits.length + cartesPokemon.length === 0) return;
     this.actualisationEnCours = true;
     try {
@@ -46,17 +46,17 @@ export class PortfolioPriceUpdater implements OnApplicationBootstrap {
   private async actualiserOnePiece(produits: number[]) {
     if (!produits.length) return;
     const { prices, updatedAt } = await this.cardmarket.getTrendPrices(produits);
-    for (const [produitId, prix] of prices) this.portfolio.updatePrice(produitId, prix, updatedAt);
+    for (const [produitId, prix] of prices) await this.portfolio.updatePrice(produitId, prix, updatedAt);
   }
 
-  private async actualiserPokemon(cartes: ReturnType<PortfolioRepository['cartesPokemon']>) {
+  private async actualiserPokemon(cartes: Awaited<ReturnType<PortfolioRepository['cartesPokemon']>>) {
     // Quatre fiches à la fois ; les finitions et les propriétaires partagent la même réponse.
     for (let debut = 0; debut < cartes.length; debut += 4) {
       const resultats = await Promise.allSettled(cartes.slice(debut, debut + 4).map(async ({ catalogId, language }) => {
         const carte = await this.pokemon.carte(catalogId, language, true);
         for (const finition of carte.finishes) {
           if (finition.trendPrice !== undefined && finition.priceUpdatedAt) {
-            this.portfolio.actualiserPokemon(carte.catalogId, language, finition.id, finition.trendPrice, finition.priceUpdatedAt);
+            await this.portfolio.actualiserPokemon(carte.catalogId, language, finition.id, finition.trendPrice, finition.priceUpdatedAt);
           }
         }
       }));

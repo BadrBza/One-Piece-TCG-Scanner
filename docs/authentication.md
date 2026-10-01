@@ -23,7 +23,7 @@ Les valeurs locales par défaut ciblent un serveur de capture SMTP sur `127.0.0.
 - Une réponse 401 sur une requête protégée déclenche un renouvellement partagé entre les requêtes du même onglet, puis une seule nouvelle tentative. Une erreur réseau ne déconnecte pas l’utilisateur.
 - Deux onglets renouvelant simultanément peuvent recevoir un 409 temporaire : réessayer l’action. Un refresh déjà consommé réutilisé après 10 secondes révoque la session.
 
-La migration conserve les comptes et collections existants, exempte les anciens comptes de vérification et invalide les anciennes sessions : une reconnexion est nécessaire. Sauvegarder la base avant déploiement. La migration n’est pas réversible par simple retour de code.
+L’ancienne migration d’authentification exemptait les comptes historiques de vérification. La reprise Prisma conserve ces exemptions, les comptes, les collections et les sessions en cours. Voir [migration et restauration](database.md).
 
 En production, utiliser HTTPS et `NODE_ENV=production`. `FRONTEND_URL` doit correspondre exactement à l’origine du navigateur (sans slash final). Les requêtes de modification sans cette origine sont refusées. Frontend et API doivent être sur le même site ; en local sur iPhone, utiliser la même adresse IP du PC pour les deux, avec leurs ports respectifs. Le limiteur IP suppose une connexion directe à l’API ; derrière un proxy, configurer uniquement les proxys de confiance avant d’utiliser l’adresse transférée.
 

@@ -10,9 +10,9 @@ export type AuthenticatedRequest = FastifyRequest & { user: AuthUser };
 export class AuthGuard implements CanActivate {
   constructor(private readonly auth: AuthService) {}
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const user = this.auth.currentUser(request.cookies.access_token);
+    const user = await this.auth.currentUser(request.cookies.access_token);
     if (!user) throw new UnauthorizedException('Connecte-toi pour continuer.');
     request.user = user;
     return true;

@@ -36,9 +36,9 @@ One Piece et Pokémon partagent `preparerImagesScan`, les réglages de lecture e
 
 La photo décodée passe ensuite à `CardVariantsService` : téléchargement des références, comparaison selon le parcours choisi, puis construction du résultat. La recherche manuelle conserve son ordre de produits et n’appelle pas ce service. Les informations internes de lecture ne sont jamais incluses dans la réponse HTTP.
 
-Le service de vérification prépare sa configuration une fois par inscription ou renvoi, réserve le code dans une transaction, puis envoie l’e-mail hors transaction. Le repository conserve les requêtes préparées. Une validation de code incorrecte comptabilise sa tentative avant de retourner l’erreur.
+Le service de vérification prépare sa configuration une fois par inscription ou renvoi, réserve le code dans une transaction, puis envoie l’e-mail hors transaction. Le repository utilise Prisma. Une validation de code incorrecte comptabilise sa tentative avant de retourner l’erreur.
 
-Les sessions suivent la même séparation : le service décide des expirations et rotations, le repository exécute le SQL. `DatabaseService` orchestre les migrations dont le SQL est regroupé dans `database.schema.ts`.
+Les sessions suivent la même séparation : le service décide des expirations et rotations, le repository exécute les requêtes Prisma. `DatabaseService` partage un client ; les modèles et migrations sont dans `apps/api/prisma`. Les opérations passent par `$transaction` pour isoler les accès à la connexion SQLite ; une opération déjà transactionnelle transmet son client explicitement. Voir [la gestion de la base](database.md).
 
 Le fournisseur Cardmarket restaure le cache disque une seule fois, puis utilise `lru-cache` pour les lectures et actualisations. Les téléchargements partagent une instance Ky ; les écritures disque restent séquentielles et ne bloquent pas les scans.
 

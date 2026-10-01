@@ -1,55 +1,53 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
-import type { Registration } from './auth.schema.js';
+import type { InscriptionEnAttente, Prisma } from '../generated/prisma/client.js';
 
-export type InscriptionEnAttente = Pick<Registration, 'email' | 'nickname'> & {
-  hash: string; password_hash: string; avatar: string | null;
-  expires_at: number; code_hash: string | null; code_expires_at: number; attempts: number;
-};
-type NouvelleInscription = Omit<InscriptionEnAttente, 'code_hash' | 'code_expires_at' | 'attempts'>;
+type NouvelleInscription = Omit<InscriptionEnAttente, 'empreinteCode' | 'expirationCode' | 'tentatives'>;
 
 @Injectable()
 export class VerificationRepository {
   constructor(private readonly database: DatabaseService) {}
-  private get db() { return this.database.connection; }
 
   creer(inscription: NouvelleInscription) {
-    this.db.prepare('DELETE FROM pending_registrations WHERE expires_at <= ?').run(Date.now());
-    this.db.prepare(`INSERT INTO pending_registrations
-      (hash, email, password_hash, nickname, avatar, expires_at) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(inscription.hash, inscription.email, inscription.password_hash, inscription.nickname, inscription.avatar, inscription.expires_at);
+    return this.database.client.$transaction(async transaction => {
+      await transaction.inscriptionEnAttente.deleteMany({ where: { expiration: { lte: BigInt(Date.now()) } } });
+      await transaction.inscriptionEnAttente.create({ data: inscription });
+    });
   }
 
-  trouver(hash: string) {
-    return this.db.prepare('SELECT * FROM pending_registrations WHERE hash = ? AND expires_at > ?')
-      .get(hash, Date.now()) as InscriptionEnAttente | undefined;
+  trouver(empreinte: string, transaction?: Prisma.TransactionClient) {
+    const lire = (client: Prisma.TransactionClient) => client.inscriptionEnAttente.findFirst({
+      where: { empreinte, expiration: { gt: BigInt(Date.now()) } },
+    });
+    return transaction ? lire(transaction) : this.database.client.$transaction(lire);
   }
 
-  compterTentative(hash: string) {
-    this.db.prepare('UPDATE pending_registrations SET attempts = attempts + 1 WHERE hash = ?').run(hash);
+  compterTentative(empreinte: string, transaction: Prisma.TransactionClient) {
+    return transaction.inscriptionEnAttente.update({ where: { empreinte }, data: { tentatives: { increment: 1 } } });
   }
 
-  supprimer(hash: string) {
-    this.db.prepare('DELETE FROM pending_registrations WHERE hash = ?').run(hash);
+  supprimer(empreinte: string, transaction: Prisma.TransactionClient) {
+    return transaction.inscriptionEnAttente.deleteMany({ where: { empreinte } });
   }
 
-  supprimerPourEmail(email: string) {
-    this.db.prepare('DELETE FROM pending_registrations WHERE email = ?').run(email);
+  supprimerPourEmail(email: string, transaction: Prisma.TransactionClient) {
+    return transaction.inscriptionEnAttente.deleteMany({ where: { email } });
   }
 
-  annulerCode(hash: string, empreinte: string) {
-    this.db.prepare('UPDATE pending_registrations SET code_hash = NULL WHERE hash = ? AND code_hash = ?').run(hash, empreinte);
+  annulerCode(empreinte: string, empreinteCode: string) {
+    return this.database.client.$transaction(transaction => transaction.inscriptionEnAttente.updateMany({
+      where: { empreinte, empreinteCode }, data: { empreinteCode: null },
+    }));
   }
 
-  compterEnvois(email: string, maintenant: number) {
-    this.db.prepare('DELETE FROM verification_sends WHERE sent_at <= ?').run(maintenant - 60 * 60_000);
-    return this.db.prepare('SELECT COUNT(*) AS count, MAX(sent_at) AS last FROM verification_sends WHERE email = ?')
-      .get(email) as { count: number; last: number | null };
+  async compterEnvois(email: string, maintenant: number, transaction: Prisma.TransactionClient) {
+    await transaction.envoiVerification.deleteMany({ where: { envoi: { lte: BigInt(maintenant - 60 * 60_000) } } });
+    return transaction.envoiVerification.aggregate({ where: { email }, _count: true, _max: { envoi: true } });
   }
 
-  enregistrerCode(inscription: InscriptionEnAttente, empreinte: string, maintenant: number) {
-    this.db.prepare('INSERT INTO verification_sends VALUES (?, ?)').run(inscription.email, maintenant);
-    this.db.prepare('UPDATE pending_registrations SET code_hash = ?, code_expires_at = ?, attempts = 0 WHERE hash = ?')
-      .run(empreinte, maintenant + 10 * 60_000, inscription.hash);
+  async enregistrerCode(inscription: InscriptionEnAttente, empreinteCode: string, maintenant: number, transaction: Prisma.TransactionClient) {
+    await transaction.envoiVerification.create({ data: { email: inscription.email, envoi: BigInt(maintenant) } });
+    await transaction.inscriptionEnAttente.update({ where: { empreinte: inscription.empreinte },
+      data: { empreinteCode, expirationCode: BigInt(maintenant + 10 * 60_000), tentatives: 0 } });
   }
 }
