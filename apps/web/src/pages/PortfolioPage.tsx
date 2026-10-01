@@ -3,6 +3,8 @@ import { ArrowDownUp, Layers, Plus } from 'lucide-react';
 
 import { usePortfolio } from '../features/portfolio/usePortfolio';
 import { PortfolioCardItem } from '../features/portfolio/components/PortfolioCardItem';
+import { PokemonCardDialog } from '../features/portfolio/components/PokemonCardDialog';
+import type { PortfolioCard } from '../features/portfolio/portfolio.api';
 
 import { euros } from '../lib/format';
 type SortOrder = 'price-desc' | 'price-asc' | 'recent' | 'name';
@@ -10,6 +12,7 @@ type SortOrder = 'price-desc' | 'price-asc' | 'recent' | 'name';
 export function PortfolioPage() {
   const { cards, loading, error, load, remove } = usePortfolio();
   const [sortOrder, setSortOrder] = useState<SortOrder>('price-desc');
+  const [carteInspectee, setCarteInspectee] = useState<PortfolioCard | null>(null);
 
   const count = cards.reduce((sum, card) => sum + card.quantity, 0);
   const estimatedValue = cards.reduce((sum, card) => sum + (card.trendPrice ?? 0) * card.quantity, 0);
@@ -69,9 +72,12 @@ export function PortfolioPage() {
             </label>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedCards.map(card => <PortfolioCardItem key={card.id} card={card} onRemove={remove} />)}
+            {sortedCards.map(card => <PortfolioCardItem key={card.id} card={card} onRemove={remove} onInspect={setCarteInspectee} />)}
           </div>
         </>
+      )}
+      {carteInspectee?.game === 'pokemon' && carteInspectee.imageUrl && (
+        <PokemonCardDialog card={carteInspectee} imageUrl={carteInspectee.imageUrl} onClose={() => setCarteInspectee(null)} />
       )}
     </section>
   );
