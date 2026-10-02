@@ -4,15 +4,17 @@ import {
   Post,
   Get,
   Query,
+  Param,
   BadRequestException,
   UseGuards,
 } from '@nestjs/common';
 
 import { valider } from '../common/validation.js';
 import { CardsService } from './cards.service.js';
+import { CardImagesService } from './card-images.service.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { isCardNumber, normalizeCardNumber } from '../recognition/card-number.js';
-import { GameSelectionSchema, LookupCardSchema, ResolveCardSchema, ScanCardSchema } from './scan-card.schema.js';
+import { CardImageParamsSchema, GameSelectionSchema, LookupCardSchema, ResolveCardSchema, ScanCardSchema } from './scan-card.schema.js';
 import { PokemonLookupSchema, PokemonResolveSchema } from '../pokemon/pokemon.schema.js';
 
 @Controller('cards')
@@ -21,7 +23,14 @@ export class CardsController {
 
   constructor(
     private readonly cardsService: CardsService,
+    private readonly images: CardImagesService,
   ) {}
+
+  @Get(':productId/image')
+  image(@Param() params: unknown) {
+    const { productId } = valider(CardImageParamsSchema, params, 'Identifiant Cardmarket invalide.');
+    return this.images.charger(productId);
+  }
 
   @Get('lookup')
   lookup(@Query() query: unknown) {

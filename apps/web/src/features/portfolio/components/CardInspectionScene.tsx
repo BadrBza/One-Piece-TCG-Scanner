@@ -2,7 +2,9 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } f
 import { Canvas, useThree } from '@react-three/fiber';
 import { CameraControls, CameraControlsImpl, Environment, Lightformer } from '@react-three/drei';
 import { Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, type Texture } from 'three';
-import dosCarte from '../../../assets/pokemon-card-back.png';
+import { request } from '../../../lib/http';
+
+export type ErreurInspection = 'image' | 'scene';
 
 export type CommandesCarte = {
   afficherFace: (verso: boolean) => void;
@@ -14,9 +16,11 @@ export type CommandesCarte = {
 type Props = {
   ref: Ref<CommandesCarte>;
   imageUrl: string;
+  cardmarketProductId?: number;
+  dos: { imageUrl: string };
   mouvementReduit: boolean;
   onReady: (pret: boolean) => void;
-  onError: () => void;
+  onError: (cause: ErreurInspection) => void;
 };
 
 const LARGEUR = 6.3;
@@ -27,11 +31,12 @@ const { ACTION } = CameraControlsImpl;
 const souris = { left: ACTION.ROTATE, middle: ACTION.DOLLY, right: ACTION.NONE, wheel: ACTION.DOLLY };
 const tactile = { one: ACTION.TOUCH_ROTATE, two: ACTION.TOUCH_DOLLY, three: ACTION.NONE };
 
-export default function PokemonCardScene({ imageUrl, ...props }: Props) {
+export default function CardInspectionScene({ imageUrl, cardmarketProductId, dos, ...props }: Props) {
   const [textures, setTextures] = useState<Texture[] | null>(null);
 
   useEffect(() => {
     let actif = true;
+    const annulation = new AbortController();
     const chargees: Texture[] = [];
     const chargeur = new TextureLoader();
     const charger = async (url: string) => {
@@ -42,16 +47,22 @@ export default function PokemonCardScene({ imageUrl, ...props }: Props) {
       chargees.push(texture);
       return texture;
     };
+    const chargerRecto = async () => {
+      if (cardmarketProductId === undefined) return charger(imageUrl);
+      // Les images Cardmarket visibles dans <img> ne sont pas forcément autorisées dans WebGL.
+      const { image } = await request<{ image: string }>(`/cards/${cardmarketProductId}/image`, {
+        signal: annulation.signal,
+        timeout: 20_000,
+      });
+      if (actif) return charger(image);
+    };
     // Textures propres à cette inspection : pas de cache GPU qui grossit entre les cartes.
-    Promise.all([charger(imageUrl), charger(dosCarte)]).then(([recto, verso]) => {
-      if (!actif) return;
-      // L'image fournie mesure 420 × 420 ; la carte occupe les colonnes 61 à 358.
-      verso.repeat.set(298 / 420, 1);
-      verso.offset.set(61 / 420, 0);
+    Promise.all([chargerRecto(), charger(dos.imageUrl)]).then(([recto, verso]) => {
+      if (!actif || !recto) return;
       setTextures([recto, verso]);
-    }).catch(() => { if (actif) props.onError(); });
-    return () => { actif = false; chargees.forEach(texture => texture.dispose()); };
-  }, [imageUrl, props.onError]);
+    }).catch(() => { if (actif) props.onError('image'); });
+    return () => { actif = false; annulation.abort(); chargees.forEach(texture => texture.dispose()); };
+  }, [imageUrl, cardmarketProductId, dos, props.onError]);
 
   if (!textures) return null;
   return (
@@ -62,7 +73,7 @@ export default function PokemonCardScene({ imageUrl, ...props }: Props) {
   );
 }
 
-function VueCarte({ ref, textures, mouvementReduit, onReady, onError }: Omit<Props, 'imageUrl'> & { textures: Texture[] }) {
+function VueCarte({ ref, textures, mouvementReduit, onReady, onError }: Omit<Props, 'imageUrl' | 'cardmarketProductId' | 'dos'> & { textures: Texture[] }) {
   const controles = useRef<CameraControlsImpl>(null);
   const { gl, size, invalidate } = useThree();
   const distanceInitiale = Math.max(HAUTEUR, LARGEUR / (size.width / size.height)) / (2 * Math.tan(35 * Math.PI / 360)) * 1.25;
@@ -79,7 +90,7 @@ function VueCarte({ ref, textures, mouvementReduit, onReady, onError }: Omit<Pro
 
   useEffect(() => () => face.dispose(), [face]);
   useEffect(() => {
-    const perteContexte = (event: Event) => { event.preventDefault(); onError(); };
+    const perteContexte = (event: Event) => { event.preventDefault(); onError('scene'); };
     gl.domElement.addEventListener('webglcontextlost', perteContexte);
     onReady(true);
     return () => gl.domElement.removeEventListener('webglcontextlost', perteContexte);

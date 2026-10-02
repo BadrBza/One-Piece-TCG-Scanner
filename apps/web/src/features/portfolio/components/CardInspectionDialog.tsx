@@ -1,13 +1,26 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ImageOff, LoaderCircle, X } from 'lucide-react';
-import dosCarte from '../../../assets/pokemon-card-back.png';
+import dosPokemon from '../../../assets/pokemon-card-back.jpg';
+import dosOnePiece from '../../../assets/one-piece-card-back-blue.jpg';
+import dosLeader from '../../../assets/one-piece-card-back-leader.png';
 import type { PortfolioCard } from '../portfolio.api';
 import { languageLabels } from '../../scanner/labels';
-import type { CommandesCarte } from './PokemonCardScene';
+import type { CommandesCarte, ErreurInspection } from './CardInspectionScene';
 
-const PokemonCardScene = lazy(() => import('./PokemonCardScene'));
+const CardInspectionScene = lazy(() => import('./CardInspectionScene'));
+const dosCartes = {
+  pokemon: { imageUrl: dosPokemon, description: 'Dos générique Pokémon' },
+  onePiece: { imageUrl: dosOnePiece, description: 'Dos bleu One Piece' },
+  leader: { imageUrl: dosLeader, description: 'Dos rouge Leader One Piece' },
+};
 
-export function PokemonCardDialog({ card, imageUrl, onClose }: {
+function choisirDos(carte: PortfolioCard) {
+  if (carte.game === 'pokemon') return dosCartes.pokemon;
+  const estLeader = ['L', 'LEADER'].includes(carte.rarity?.trim().toUpperCase() ?? '');
+  return estLeader ? dosCartes.leader : dosCartes.onePiece;
+}
+
+export function CardInspectionDialog({ card, imageUrl, onClose }: {
   card: PortfolioCard;
   imageUrl: string;
   onClose: () => void;
@@ -18,12 +31,14 @@ export function PokemonCardDialog({ card, imageUrl, onClose }: {
   const titreId = useId();
   const aideId = useId();
   const [pret, setPret] = useState(false);
-  const [mode2d, setMode2d] = useState(false);
+  const [erreur3d, setErreur3d] = useState<ErreurInspection | null>(null);
+  const mode2d = erreur3d !== null;
   const [verso, setVerso] = useState(false);
   const [imageAbsente, setImageAbsente] = useState<string | null>(null);
   const [mouvementReduit, setMouvementReduit] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const afficher2d = useCallback(() => setMode2d(true), []);
-  const image2d = verso ? dosCarte : imageUrl;
+  const afficher2d = useCallback((cause: ErreurInspection) => setErreur3d(cause), []);
+  const dos = choisirDos(card);
+  const image2d = verso ? dos.imageUrl : imageUrl;
 
   useEffect(() => {
     const element = dialogue.current!;
@@ -75,7 +90,7 @@ export function PokemonCardDialog({ card, imageUrl, onClose }: {
       className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden border-0 bg-transparent p-0 text-stone-800 outline-none backdrop:bg-black/20">
       <h2 id={titreId} className="sr-only">{card.name}</h2>
       <p className="sr-only">
-        {[card.cardNumber, card.expansion, card.game === 'pokemon' ? languageLabels[card.language] : card.language].filter(Boolean).join(' · ')}. Dos générique Pokémon, illustration de présentation.
+        {[card.cardNumber, card.expansion, card.game === 'pokemon' ? languageLabels[card.language] : card.language].filter(Boolean).join(' · ')}. {dos.description}, illustration de présentation.
       </p>
       <p id={aideId} role="status" className="sr-only">
         {mode2d ? 'Vue 2D. Active la carte pour la retourner.' : 'Fais glisser pour tourner. Pince ou utilise la molette pour zoomer. Au clavier, utilise les flèches pour tourner, plus et moins pour zoomer, F pour le recto, V pour le verso et Début pour réinitialiser.'}
@@ -94,16 +109,18 @@ export function PokemonCardDialog({ card, imageUrl, onClose }: {
             ) : (
               <button type="button" onClick={() => afficherFace(!verso)} aria-label={`Retourner ${card.name} : afficher le ${verso ? 'recto' : 'verso'}`}
                 className="relative aspect-[63/88] h-[min(100cqh,calc(100cqw*88/63))] overflow-hidden rounded-[4%] shadow-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8f2430]">
-                <img key={image2d} src={image2d} alt={`${verso ? 'Dos générique' : 'Recto'} — ${card.name}`}
+                <img key={image2d} src={image2d} alt={`${verso ? dos.description : 'Recto'} — ${card.name}`}
                   onError={() => setImageAbsente(image2d)} draggable={false}
-                  className={verso ? 'absolute left-1/2 h-full w-[140.94%] max-w-none -translate-x-1/2' : 'h-full w-full object-contain'} />
+                  className="h-full w-full object-contain" />
               </button>
             )}
           </div>
         ) : (
-          <SceneBoundary onError={afficher2d}>
+          <SceneBoundary onError={() => afficher2d('scene')}>
             <Suspense fallback={null}>
-              <PokemonCardScene ref={commandes} imageUrl={imageUrl} mouvementReduit={mouvementReduit} onReady={setPret} onError={afficher2d} />
+              <CardInspectionScene ref={commandes} imageUrl={imageUrl} dos={dos}
+                cardmarketProductId={card.game === 'pokemon' ? undefined : card.cardmarketProductId}
+                mouvementReduit={mouvementReduit} onReady={setPret} onError={afficher2d} />
             </Suspense>
           </SceneBoundary>
         )}
@@ -111,6 +128,11 @@ export function PokemonCardDialog({ card, imageUrl, onClose }: {
           <div role="status" className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="flex items-center gap-3 rounded-full bg-white/80 px-4 py-2 text-sm"><LoaderCircle className="size-5 loading-indicator" aria-hidden="true" /> Préparation de la carte…</span>
           </div>
+        )}
+        {mode2d && (
+          <p role="status" className="pointer-events-none absolute inset-x-4 bottom-5 mx-auto w-fit rounded-full bg-white/80 px-4 py-2 text-center text-xs">
+            {erreur3d === 'image' ? 'Texture indisponible pour la 3D' : 'Vue 3D indisponible'} · affichage 2D
+          </p>
         )}
       </div>
     </dialog>

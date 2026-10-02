@@ -3,7 +3,7 @@ import { ArrowDownUp, Layers, Plus } from 'lucide-react';
 
 import { usePortfolio } from '../features/portfolio/usePortfolio';
 import { PortfolioCardItem } from '../features/portfolio/components/PortfolioCardItem';
-import { PokemonCardDialog } from '../features/portfolio/components/PokemonCardDialog';
+import { CardInspectionDialog } from '../features/portfolio/components/CardInspectionDialog';
 import type { PortfolioCard } from '../features/portfolio/portfolio.api';
 
 import { euros } from '../lib/format';
@@ -76,8 +76,8 @@ export function PortfolioPage() {
           </div>
         </>
       )}
-      {carteInspectee?.game === 'pokemon' && carteInspectee.imageUrl && (
-        <PokemonCardDialog card={carteInspectee} imageUrl={carteInspectee.imageUrl} onClose={() => setCarteInspectee(null)} />
+      {carteInspectee?.imageUrl && (
+        <CardInspectionDialog key={carteInspectee.id} card={carteInspectee} imageUrl={carteInspectee.imageUrl} onClose={() => setCarteInspectee(null)} />
       )}
     </section>
   );

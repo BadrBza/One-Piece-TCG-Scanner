@@ -33,7 +33,7 @@ export function PortfolioCardItem({ card, onRemove, onInspect }: {
 
   return (
     <article className="flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere] rounded-md border border-stone-300 bg-[#fffefa] p-4">
-      {card.game === 'pokemon' ? card.imageUrl && card.imageUrl !== imageAbsente ? (
+      {card.imageUrl && card.imageUrl !== imageAbsente ? (
         <button type="button" onClick={event => { event.currentTarget.focus(); onInspect(card); }} aria-label={`Inspecter ${card.name} en 3D`}
           aria-haspopup="dialog" className="group relative rounded-lg bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8f2430]">
           <img src={card.imageUrl} alt={card.name} loading="lazy" onError={() => setImageAbsente(card.imageUrl)} className="h-64 w-full rounded-lg object-contain p-2" />
@@ -45,7 +45,7 @@ export function PortfolioCardItem({ card, onRemove, onInspect }: {
         <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-lg bg-stone-100 text-sm text-stone-500">
           <ImageOff className="size-6" aria-hidden="true" /> Image indisponible
         </div>
-      ) : card.imageUrl && <img src={card.imageUrl} alt={card.name} loading="lazy" className="h-64 w-full rounded-sm bg-stone-100 object-contain p-2" />}
+      )}
       <div>
         <p className="mb-1 text-xs font-semibold text-[#8f2430]">{card.game === 'pokemon' ? 'Pokémon' : 'One Piece'}</p>
         <p className="text-xs font-medium text-stone-500">{card.cardNumber} · Quantité : {card.quantity}</p>

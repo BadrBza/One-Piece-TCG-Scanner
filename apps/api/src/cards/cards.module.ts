@@ -6,6 +6,7 @@ import { PricingModule } from '../pricing/pricing.module.js';
 import { RecognitionModule } from '../recognition/recognition.module.js';
 import { CardsController } from './cards.controller.js';
 import { CardsService } from './cards.service.js';
+import { CardImagesService } from './card-images.service.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CardsService } from './cards.service.js';
   ],
   providers: [
     CardsService,
+    CardImagesService,
   ],
 })
 export class CardsModule {}
